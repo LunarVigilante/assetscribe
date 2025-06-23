@@ -1,0 +1,617 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// CORE SUPPORTING TABLES
+// ============================================================================
+
+model Manufacturer {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  website     String?
+  support_url String?
+  created_at  DateTime     @default(now())
+  updated_at  DateTime     @updatedAt
+  
+  // Relations
+  asset_models AssetModel[]
+  consumables  Consumable[]
+  licenses     License[]
+  
+  @@map("manufacturers")
+}
+
+model Category {
+  id         Int          @id @default(autoincrement())
+  name       String       @unique
+  created_at DateTime     @default(now())
+  updated_at DateTime     @updatedAt
+  
+  // Relations
+  asset_models AssetModel[]
+  consumables  Consumable[]
+  
+  @@map("categories")
+}
+
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  contact_info String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // Relations
+  assets Asset[]
+  
+  @@map("suppliers")
+}
+
+model StatusLabel {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  color      String?  // Hex color for UI display
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  // Relations
+  assets Asset[]
+  configuration_items ConfigurationItem[]
+  
+  @@map("status_labels")
+}
+
+model DepreciationMethod {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // Relations
+  asset_models AssetModel[]
+  
+  @@map("depreciation_methods")
+}
+
+model Department {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  // Relations
+  users  User[]
+  assets Asset[]
+  
+  @@map("departments")
+}
+
+model Location {
+  id                 Int        @id @default(autoincrement())
+  name               String
+  parent_location_id Int?
+  created_at         DateTime   @default(now())
+  updated_at         DateTime   @updatedAt
+  
+  // Self-referencing relation for hierarchy
+  parent_location Location? @relation("LocationHierarchy", fields: [parent_location_id], references: [id])
+  child_locations Location[] @relation("LocationHierarchy")
+  
+  // Relations
+  users           User[]
+  assets          Asset[]
+  scheduled_tasks ScheduledTask[]
+  
+  @@map("locations")
+}
+
+// ============================================================================
+// RBAC SYSTEM
+// ============================================================================
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  role_name   String   @unique
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // Relations
+  role_permissions RolePermission[]
+  user_roles       UserRole[]
+  
+  @@map("roles")
+}
+
+model Permission {
+  id              Int      @id @default(autoincrement())
+  permission_name String   @unique // e.g., "asset:create", "user:delete"
+  display_name    String   // Human-readable name for UI
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  
+  // Relations
+  role_permissions RolePermission[]
+  
+  @@map("permissions")
+}
+
+model RolePermission {
+  role_id       Int
+  permission_id Int
+  
+  // Relations
+  role       Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+  
+  @@id([role_id, permission_id])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  user_id Int
+  role_id Int
+  
+  // Relations
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  
+  @@id([user_id, role_id])
+  @@map("user_roles")
+}
+
+// ============================================================================
+// CORE USER TABLE
+// ============================================================================
+
+model User {
+  id                          Int       @id @default(autoincrement())
+  employee_id                 String    @unique // External HR system ID
+  first_name                  String
+  last_name                   String
+  nickname                    String?
+  username                    String    @unique
+  email                       String    @unique
+  job_title                   String?
+  manager_id                  Int?
+  department_id               Int?
+  location_id                 Int?
+  office_phone               String?
+  work_cell_phone            String?
+  personal_cell_phone        String?
+  address                    String?
+  photo_url                  String?
+  is_active                  Boolean   @default(true)
+  last_verified_date         DateTime?
+  verification_interval_months Int?
+  created_at                 DateTime  @default(now())
+  updated_at                 DateTime  @updatedAt
+  
+  // Self-referencing relation for manager
+  manager     User?  @relation("UserManager", fields: [manager_id], references: [id])
+  direct_reports User[] @relation("UserManager")
+  
+  // Relations to other tables
+  department Department? @relation(fields: [department_id], references: [id])
+  location   Location?   @relation(fields: [location_id], references: [id])
+  
+  // Relations
+  user_roles              UserRole[]
+  assigned_assets         Asset[]                   @relation("AssetAssignedTo")
+  access_documentation    UserAccessDocumentation[]
+  activity_logs           ActivityLog[]
+  scheduled_tasks         ScheduledTask[]
+  responsible_cis         ConfigurationItem[]       @relation("CIResponsibleUser")
+  granted_access_logs     UserAccessDocumentation[] @relation("AccessGrantedBy")
+  license_assignments     LicenseAssignment[]
+  workflow_instances      WorkflowInstance[]
+  completed_workflow_tasks WorkflowInstanceTask[]
+  
+  @@map("users")
+}
+
+model UserAccessDocumentation {
+  id                 Int      @id @default(autoincrement())
+  user_id            Int
+  access_type        String   // e.g., 'Distribution List', 'O365 Group', etc.
+  access_value       String   // The specific name or value
+  granted_by_user_id Int
+  granted_at         DateTime @default(now())
+  external_ticket_id String?
+  
+  // Relations
+  user           User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  granted_by_user User @relation("AccessGrantedBy", fields: [granted_by_user_id], references: [id])
+  
+  @@map("user_access_documentation")
+}
+
+// ============================================================================
+// ASSET MANAGEMENT
+// ============================================================================
+
+model AssetModel {
+  id              Int      @id @default(autoincrement())
+  name            String
+  manufacturer_id Int
+  category_id     Int
+  model_number    String?
+  eol_date        DateTime?
+  image_url       String?
+  depreciation_id Int?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+  
+  // Relations
+  manufacturer        Manufacturer         @relation(fields: [manufacturer_id], references: [id])
+  category           Category             @relation(fields: [category_id], references: [id])
+  depreciation_method DepreciationMethod? @relation(fields: [depreciation_id], references: [id])
+  assets             Asset[]
+  compatible_consumables ModelConsumableCompatibility[]
+  kb_links           KBLink[]
+  
+  @@map("asset_models")
+}
+
+model Asset {
+  id                          Int       @id @default(autoincrement())
+  asset_tag                   String    @unique
+  serial_number              String?
+  model_id                   Int
+  status_id                  Int
+  assigned_to_user_id        Int?
+  location_id                Int?
+  department_id              Int?
+  supplier_id                Int?
+  purchase_date              DateTime?
+  purchase_cost              Decimal?  @db.Decimal(10,2)
+  warranty_expiry_date       DateTime?
+  notes                      String?
+  last_verified_date         DateTime?
+  verification_interval_months Int?
+  created_at                 DateTime  @default(now())
+  updated_at                 DateTime  @updatedAt
+  
+  // Relations
+  model           AssetModel    @relation(fields: [model_id], references: [id])
+  status          StatusLabel   @relation(fields: [status_id], references: [id])
+  assigned_to_user User?       @relation("AssetAssignedTo", fields: [assigned_to_user_id], references: [id])
+  location        Location?     @relation(fields: [location_id], references: [id])
+  department      Department?   @relation(fields: [department_id], references: [id])
+  supplier        Supplier?     @relation(fields: [supplier_id], references: [id])
+  
+  custom_field_values AssetCustomFieldValue[]
+  attachments        AssetAttachment[]
+  license_assignments LicenseAssignment[]
+  kb_links           KBLink[]
+  
+  @@map("assets")
+}
+
+model CustomField {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  field_type   String   // e.g., 'text', 'number', 'date', 'boolean'
+  format_regex String?  // Optional validation regex
+  is_encrypted Boolean  @default(false)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  
+  // Relations
+  asset_values AssetCustomFieldValue[]
+  
+  @@map("custom_fields")
+}
+
+model AssetCustomFieldValue {
+  id       Int    @id @default(autoincrement())
+  asset_id Int
+  field_id Int
+  value    String // Store all values as strings, parse as needed
+  
+  // Relations
+  asset Asset       @relation(fields: [asset_id], references: [id], onDelete: Cascade)
+  field CustomField @relation(fields: [field_id], references: [id], onDelete: Cascade)
+  
+  @@unique([asset_id, field_id])
+  @@map("asset_custom_field_values")
+}
+
+model AssetAttachment {
+  id          Int      @id @default(autoincrement())
+  asset_id    Int
+  file_name   String
+  file_path   String
+  file_size   Int?
+  mime_type   String?
+  uploaded_at DateTime @default(now())
+  
+  // Relations
+  asset Asset @relation(fields: [asset_id], references: [id], onDelete: Cascade)
+  
+  @@map("asset_attachments")
+}
+
+// ============================================================================
+// LICENSES AND CONSUMABLES
+// ============================================================================
+
+model License {
+  id            Int      @id @default(autoincrement())
+  license_name  String
+  product_key   String?
+  total_seats   Int
+  purchase_date DateTime?
+  expiry_date   DateTime?
+  vendor_id     Int?
+  notes         String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  
+  // Relations
+  vendor      Manufacturer? @relation(fields: [vendor_id], references: [id])
+  assignments LicenseAssignment[]
+  
+  @@map("licenses")
+}
+
+model LicenseAssignment {
+  id         Int @id @default(autoincrement())
+  license_id Int
+  user_id    Int?
+  asset_id   Int?
+  assigned_at DateTime @default(now())
+  external_ticket_id String?
+  
+  // Relations
+  license License @relation(fields: [license_id], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [user_id], references: [id])
+  asset   Asset?  @relation(fields: [asset_id], references: [id])
+  
+  @@map("license_assignments")
+}
+
+model Consumable {
+  id               Int      @id @default(autoincrement())
+  name             String
+  category_id      Int
+  manufacturer_id  Int?
+  model_number     String?
+  current_stock    Int      @default(0)
+  min_stock_level  Int      @default(0)
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+  
+  // Relations
+  category     Category      @relation(fields: [category_id], references: [id])
+  manufacturer Manufacturer? @relation(fields: [manufacturer_id], references: [id])
+  compatible_models ModelConsumableCompatibility[]
+  
+  @@map("consumables")
+}
+
+model ModelConsumableCompatibility {
+  model_id      Int
+  consumable_id Int
+  
+  // Relations
+  model      AssetModel @relation(fields: [model_id], references: [id], onDelete: Cascade)
+  consumable Consumable @relation(fields: [consumable_id], references: [id], onDelete: Cascade)
+  
+  @@id([model_id, consumable_id])
+  @@map("model_consumable_compatibility")
+}
+
+// ============================================================================
+// CMDB (Configuration Management Database)
+// ============================================================================
+
+model CIType {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // Relations
+  configuration_items ConfigurationItem[]
+  
+  @@map("ci_types")
+}
+
+model ConfigurationItem {
+  id                    Int      @id @default(autoincrement())
+  name                  String
+  ci_type_id            Int
+  description           String?
+  responsible_user_id   Int?
+  status_id             Int
+  created_at            DateTime @default(now())
+  updated_at            DateTime @updatedAt
+  
+  // Relations
+  ci_type          CIType      @relation(fields: [ci_type_id], references: [id])
+  responsible_user User?       @relation("CIResponsibleUser", fields: [responsible_user_id], references: [id])
+  status           StatusLabel @relation(fields: [status_id], references: [id])
+  
+  parent_relationships CIRelationship[] @relation("ParentCI")
+  child_relationships  CIRelationship[] @relation("ChildCI")
+  kb_links            KBLink[]
+  
+  @@map("configuration_items")
+}
+
+model CIRelationship {
+  id                Int    @id @default(autoincrement())
+  parent_ci_id      Int
+  child_ci_id       Int
+  relationship_type String // e.g., "Depends on", "Runs on", "Used by"
+  
+  // Relations
+  parent_ci ConfigurationItem @relation("ParentCI", fields: [parent_ci_id], references: [id], onDelete: Cascade)
+  child_ci  ConfigurationItem @relation("ChildCI", fields: [child_ci_id], references: [id], onDelete: Cascade)
+  
+  @@map("ci_relationships")
+}
+
+// ============================================================================
+// WORKFLOW ENGINE
+// ============================================================================
+
+model WorkflowTemplate {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // Relations
+  tasks     WorkflowTemplateTask[]
+  instances WorkflowInstance[]
+  
+  @@map("workflow_templates")
+}
+
+model WorkflowTemplateTask {
+  id           Int      @id @default(autoincrement())
+  template_id  Int
+  task_name    String
+  description  String?
+  display_order Int
+  task_type    String   // e.g., 'manual_checkbox', 'link_to_action'
+  link_url     String?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+  
+  // Relations
+  template WorkflowTemplate @relation(fields: [template_id], references: [id], onDelete: Cascade)
+  instance_tasks WorkflowInstanceTask[]
+  
+  @@map("workflow_template_tasks")
+}
+
+model WorkflowInstance {
+  id             Int      @id @default(autoincrement())
+  template_id    Int
+  target_user_id Int
+  status         String   @default("In Progress") // e.g., "In Progress", "Completed"
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+  
+  // Relations
+  template    WorkflowTemplate @relation(fields: [template_id], references: [id])
+  target_user User             @relation(fields: [target_user_id], references: [id])
+  tasks       WorkflowInstanceTask[]
+  
+  @@map("workflow_instances")
+}
+
+model WorkflowInstanceTask {
+  instance_id         Int
+  task_id            Int
+  is_completed       Boolean   @default(false)
+  completed_by_user_id Int?
+  completed_at       DateTime?
+  external_ticket_id String?
+  
+  // Relations
+  instance         WorkflowInstance     @relation(fields: [instance_id], references: [id], onDelete: Cascade)
+  task            WorkflowTemplateTask @relation(fields: [task_id], references: [id])
+  completed_by_user User?              @relation(fields: [completed_by_user_id], references: [id])
+  
+  @@id([instance_id, task_id])
+  @@map("workflow_instance_tasks")
+}
+
+// ============================================================================
+// SCHEDULED TASKS & MAINTENANCE
+// ============================================================================
+
+model ScheduledTask {
+  id                     Int       @id @default(autoincrement())
+  task_name              String
+  task_type              String    // e.g., 'User Verification', 'Asset Verification', 'General Maintenance'
+  description            String?
+  frequency_type         String    // e.g., 'Days', 'Weeks', 'Months', 'Years'
+  frequency_interval     Int
+  last_completed_date    DateTime?
+  next_due_date          DateTime
+  assigned_to_user_id    Int
+  location_id            Int?
+  created_at             DateTime  @default(now())
+  updated_at             DateTime  @updatedAt
+  
+  // Relations
+  assigned_to_user User      @relation(fields: [assigned_to_user_id], references: [id])
+  location         Location? @relation(fields: [location_id], references: [id])
+  
+  @@map("scheduled_tasks")
+}
+
+// ============================================================================
+// KNOWLEDGE BASE
+// ============================================================================
+
+model KBArticle {
+  id         Int      @id @default(autoincrement())
+  title      String
+  content    String   // Rich text content
+  category   String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  // Relations
+  kb_links KBLink[]
+  
+  @@map("kb_articles")
+}
+
+model KBLink {
+  id                   Int    @id @default(autoincrement())
+  article_id           Int
+  asset_id             Int?   // Optional - for linking to assets
+  asset_model_id       Int?   // Optional - for linking to asset models
+  configuration_item_id Int?   // Optional - for linking to configuration items
+  
+  // Relations
+  article            KBArticle          @relation(fields: [article_id], references: [id], onDelete: Cascade)
+  asset              Asset?             @relation(fields: [asset_id], references: [id], onDelete: Cascade)
+  asset_model        AssetModel?        @relation(fields: [asset_model_id], references: [id], onDelete: Cascade)
+  configuration_item ConfigurationItem? @relation(fields: [configuration_item_id], references: [id], onDelete: Cascade)
+  
+  @@map("kb_links")
+}
+
+// ============================================================================
+// ACTIVITY LOG & AUDIT TRAIL
+// ============================================================================
+
+model ActivityLog {
+  id                 Int      @id @default(autoincrement())
+  user_id            Int
+  action_type        String   // e.g., 'USER_CREATE', 'ASSET_CHECKOUT', 'LICENSE_ASSIGN'
+  target_id          Int
+  target_type        String   // e.g., 'User', 'Asset', 'License'
+  details            Json?    // Structured log of changes (old vs new values)
+  external_ticket_id String   // Mandatory ServiceNow ticket ID
+  timestamp          DateTime @default(now())
+  
+  // Relations
+  user User @relation(fields: [user_id], references: [id])
+  
+  @@map("activity_log")
+}
