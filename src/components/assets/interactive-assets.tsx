@@ -190,6 +190,11 @@ export function InteractiveAssets({
   const [customCategory, setCustomCategory] = useState('')
   const [showCustomCategory, setShowCustomCategory] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  
+  // Photo handling state
+  const [photoOption, setPhotoOption] = useState<'model' | 'unique' | 'stock'>('stock')
+  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
+  const [selectedStockPhoto, setSelectedStockPhoto] = useState('')
 
   const handleAddAsset = () => {
     setCurrentPage(1)
@@ -206,6 +211,10 @@ export function InteractiveAssets({
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1)
     }
+  }
+  
+  const handleStepClick = (step: number) => {
+    setCurrentPage(step)
   }
 
   const handleCloseModal = () => {
@@ -288,22 +297,28 @@ export function InteractiveAssets({
                       }`}
                     />
                     {i < totalPages - 1 && (
-                      <div className={`w-8 h-8 rounded-full border-2 mx-2 flex items-center justify-center text-xs font-medium ${
-                        i + 1 < currentPage ? 'bg-primary text-primary-foreground border-primary' :
-                        i + 1 === currentPage ? 'bg-background text-primary border-primary' :
-                        'bg-background text-muted-foreground border-muted'
-                      }`}>
+                      <button
+                        onClick={() => handleStepClick(i + 1)}
+                        className={`w-8 h-8 rounded-full border-2 mx-2 flex items-center justify-center text-xs font-medium transition-colors hover:bg-primary/10 ${
+                          i + 1 < currentPage ? 'bg-primary text-primary-foreground border-primary' :
+                          i + 1 === currentPage ? 'bg-background text-primary border-primary' :
+                          'bg-background text-muted-foreground border-muted hover:border-primary/50'
+                        }`}
+                      >
                         {i + 1}
-                      </div>
+                      </button>
                     )}
                   </div>
                 ))}
-                <div className={`w-8 h-8 rounded-full border-2 mx-2 flex items-center justify-center text-xs font-medium ${
-                  currentPage === totalPages ? 'bg-primary text-primary-foreground border-primary' :
-                  'bg-background text-muted-foreground border-muted'
-                }`}>
+                <button
+                  onClick={() => handleStepClick(totalPages)}
+                  className={`w-8 h-8 rounded-full border-2 mx-2 flex items-center justify-center text-xs font-medium transition-colors hover:bg-primary/10 ${
+                    currentPage === totalPages ? 'bg-primary text-primary-foreground border-primary' :
+                    'bg-background text-muted-foreground border-muted hover:border-primary/50'
+                  }`}
+                >
                   {totalPages}
-                </div>
+                </button>
               </div>
               
               {/* Page titles */}
@@ -314,7 +329,7 @@ export function InteractiveAssets({
                   {currentPage === 3 && 'Purchase Information'}
                   {currentPage === 4 && 'Status & Assignment'}
                   {currentPage === 5 && 'Warranty & Maintenance'}
-                  {currentPage === 6 && 'Technical Specifications'}
+                  {currentPage === 6 && 'Photos & Documentation'}
                   {currentPage === 7 && 'Additional Information'}
                 </span>
               </div>
@@ -558,36 +573,123 @@ export function InteractiveAssets({
                   </div>
                 )}
 
-                {/* Page 6: Technical Specifications */}
+                {/* Page 6: Photos & Documentation */}
                 {currentPage === 6 && (
                   <div className="space-y-6">
                     <div>
-                      <h3 className="text-lg font-medium mb-4">Technical Specifications</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div>
-                          <label className="text-sm font-medium">CPU/Processor</label>
-                          <Input placeholder="e.g., Intel i7-12700H" className="mt-1" />
+                      <h3 className="text-lg font-medium mb-4">Photos & Documentation</h3>
+                      
+                      {/* Photo Option Selection */}
+                      <div className="mb-6">
+                        <label className="text-sm font-medium mb-3 block">Photo Assignment</label>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <label className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50">
+                            <input
+                              type="radio"
+                              name="photoOption"
+                              value="model"
+                              checked={photoOption === 'model'}
+                              onChange={(e) => setPhotoOption(e.target.value as 'model' | 'unique' | 'stock')}
+                              className="w-4 h-4"
+                            />
+                            <div>
+                              <div className="font-medium">Model Photo</div>
+                              <div className="text-xs text-muted-foreground">Shared across all assets of this model</div>
+                            </div>
+                          </label>
+                          
+                          <label className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50">
+                            <input
+                              type="radio"
+                              name="photoOption"
+                              value="unique"
+                              checked={photoOption === 'unique'}
+                              onChange={(e) => setPhotoOption(e.target.value as 'model' | 'unique' | 'stock')}
+                              className="w-4 h-4"
+                            />
+                            <div>
+                              <div className="font-medium">Unique Photo</div>
+                              <div className="text-xs text-muted-foreground">Specific to this asset only</div>
+                            </div>
+                          </label>
+                          
+                          <label className="flex items-center space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50">
+                            <input
+                              type="radio"
+                              name="photoOption"
+                              value="stock"
+                              checked={photoOption === 'stock'}
+                              onChange={(e) => setPhotoOption(e.target.value as 'model' | 'unique' | 'stock')}
+                              className="w-4 h-4"
+                            />
+                            <div>
+                              <div className="font-medium">Stock Photo</div>
+                              <div className="text-xs text-muted-foreground">Use a generic category image</div>
+                            </div>
+                          </label>
                         </div>
-                        <div>
-                          <label className="text-sm font-medium">RAM/Memory</label>
-                          <Input placeholder="e.g., 16GB DDR4" className="mt-1" />
+                      </div>
+
+                      {/* Photo Upload/Selection */}
+                      {photoOption !== 'stock' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-sm font-medium">Upload Photo</label>
+                            <Input 
+                              type="file" 
+                              accept=".jpg,.jpeg,.png,.webp" 
+                              className="mt-1"
+                              onChange={(e) => setSelectedPhoto(e.target.files?.[0] || null)}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {photoOption === 'model' 
+                                ? 'This photo will be used for all assets of this model'
+                                : 'This photo will be specific to this asset'
+                              }
+                            </p>
+                          </div>
+                          <div className="flex items-center justify-center border-2 border-dashed border-muted rounded-lg h-24">
+                            <span className="text-muted-foreground text-sm">Photo Preview</span>
+                          </div>
                         </div>
+                      )}
+
+                      {/* Stock Photo Selection */}
+                      {photoOption === 'stock' && (
                         <div>
-                          <label className="text-sm font-medium">Storage</label>
-                          <Input placeholder="e.g., 512GB SSD" className="mt-1" />
+                          <label className="text-sm font-medium mb-2 block">Select Stock Photo</label>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {['laptop', 'desktop', 'monitor', 'server'].map((category) => (
+                              <label key={category} className="cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="stockPhoto"
+                                  value={category}
+                                  checked={selectedStockPhoto === category}
+                                  onChange={(e) => setSelectedStockPhoto(e.target.value)}
+                                  className="sr-only"
+                                />
+                                <div className={`border-2 rounded-lg p-4 text-center hover:bg-muted/50 ${
+                                  selectedStockPhoto === category ? 'border-primary bg-primary/10' : 'border-muted'
+                                }`}>
+                                  <div className="h-16 bg-muted rounded flex items-center justify-center mb-2">
+                                    <span className="text-xs text-muted-foreground capitalize">{category}</span>
+                                  </div>
+                                  <span className="text-xs font-medium capitalize">{category}</span>
+                                </div>
+                              </label>
+                            ))}
+                          </div>
                         </div>
-                        <div>
-                          <label className="text-sm font-medium">Operating System</label>
-                          <Input placeholder="e.g., Windows 11 Pro" className="mt-1" />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">Screen Size</label>
-                          <Input placeholder="e.g., 15.6 inches" className="mt-1" />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">Network (MAC Address)</label>
-                          <Input placeholder="e.g., 00:1A:2B:3C:4D:5E" className="mt-1" />
-                        </div>
+                      )}
+
+                      {/* Additional Documentation */}
+                      <div>
+                        <label className="text-sm font-medium">Additional Documentation</label>
+                        <Input type="file" accept=".pdf,.doc,.docx" multiple className="mt-1" />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Upload manuals, receipts, warranty documents, etc.
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -616,15 +718,18 @@ export function InteractiveAssets({
                       </div>
                       <div className="space-y-4">
                         <div>
+                          <label className="text-sm font-medium">External Ticket ID</label>
+                          <Input placeholder="e.g., SNOW-123456 (ServiceNow ticket)" className="mt-1" />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Reference to external ticket system for tracking
+                          </p>
+                        </div>
+                        <div>
                           <label className="text-sm font-medium">Notes</label>
                           <textarea 
                             className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring mt-1"
                             placeholder="Add any additional notes about this asset..."
                           />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">External Ticket ID</label>
-                          <Input placeholder="e.g., SNOW-123456 (ServiceNow ticket)" className="mt-1" />
                         </div>
                       </div>
                     </div>
@@ -821,22 +926,28 @@ export function InteractiveAssets({
                       }`}
                     />
                     {i < totalPages - 1 && (
-                      <div className={`w-8 h-8 rounded-full border-2 mx-2 flex items-center justify-center text-xs font-medium ${
-                        i + 1 < currentPage ? 'bg-primary text-primary-foreground border-primary' :
-                        i + 1 === currentPage ? 'bg-background text-primary border-primary' :
-                        'bg-background text-muted-foreground border-muted'
-                      }`}>
+                      <button
+                        onClick={() => handleStepClick(i + 1)}
+                        className={`w-8 h-8 rounded-full border-2 mx-2 flex items-center justify-center text-xs font-medium transition-colors hover:bg-primary/10 ${
+                          i + 1 < currentPage ? 'bg-primary text-primary-foreground border-primary' :
+                          i + 1 === currentPage ? 'bg-background text-primary border-primary' :
+                          'bg-background text-muted-foreground border-muted hover:border-primary/50'
+                        }`}
+                      >
                         {i + 1}
-                      </div>
+                      </button>
                     )}
                   </div>
                 ))}
-                <div className={`w-8 h-8 rounded-full border-2 mx-2 flex items-center justify-center text-xs font-medium ${
-                  currentPage === totalPages ? 'bg-primary text-primary-foreground border-primary' :
-                  'bg-background text-muted-foreground border-muted'
-                }`}>
+                <button
+                  onClick={() => handleStepClick(totalPages)}
+                  className={`w-8 h-8 rounded-full border-2 mx-2 flex items-center justify-center text-xs font-medium transition-colors hover:bg-primary/10 ${
+                    currentPage === totalPages ? 'bg-primary text-primary-foreground border-primary' :
+                    'bg-background text-muted-foreground border-muted hover:border-primary/50'
+                  }`}
+                >
                   {totalPages}
-                </div>
+                </button>
               </div>
               
               <div className="mt-3">
@@ -846,7 +957,7 @@ export function InteractiveAssets({
                   {currentPage === 3 && 'Purchase Information'}
                   {currentPage === 4 && 'Status & Assignment'}
                   {currentPage === 5 && 'Warranty & Maintenance'}
-                  {currentPage === 6 && 'Technical Specifications'}
+                  {currentPage === 6 && 'Photos & Documentation'}
                   {currentPage === 7 && 'Additional Information'}
                 </span>
               </div>

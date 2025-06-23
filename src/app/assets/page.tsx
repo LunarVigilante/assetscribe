@@ -169,11 +169,12 @@ async function AssetsContent({ autoAdd }: AssetsContentProps) {
 }
 
 interface AssetsPageProps {
-  searchParams: { [key: string]: string | string[] | undefined }
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export default function AssetsPage({ searchParams }: AssetsPageProps) {
-  const autoAdd = searchParams.add === 'true'
+export default async function AssetsPage({ searchParams }: AssetsPageProps) {
+  const params = await searchParams
+  const autoAdd = params.add === 'true'
 
   return (
     <div className="p-6">
