@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -21,6 +22,7 @@ interface DashboardData {
 export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     // TODO: Replace with actual API call
@@ -102,7 +104,7 @@ export default function DashboardPage() {
             Welcome to your Asset and Configuration Management Platform
           </p>
         </div>
-        <Button>
+        <Button onClick={() => router.push('/assets?add=true')}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Quick Add Asset
         </Button>

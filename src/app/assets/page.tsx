@@ -118,7 +118,11 @@ function getStatusVariant(statusName: string): "default" | "secondary" | "destru
   }
 }
 
-async function AssetsContent() {
+interface AssetsContentProps {
+  autoAdd?: boolean
+}
+
+async function AssetsContent({ autoAdd }: AssetsContentProps) {
   const data = await getAssetsData()
 
   return (
@@ -159,15 +163,22 @@ async function AssetsContent() {
         color: label.color || undefined
       }))}
       totalAssets={data.totalAssets}
+      autoAdd={autoAdd}
     />
   )
 }
 
-export default function AssetsPage() {
+interface AssetsPageProps {
+  searchParams: { [key: string]: string | string[] | undefined }
+}
+
+export default function AssetsPage({ searchParams }: AssetsPageProps) {
+  const autoAdd = searchParams.add === 'true'
+
   return (
     <div className="p-6">
       <Suspense fallback={<AssetsLoading />}>
-        <AssetsContent />
+        <AssetsContent autoAdd={autoAdd} />
       </Suspense>
     </div>
   )

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -74,6 +74,7 @@ type InteractiveAssetsProps = {
   statusCounts: { status_id: string; count: number }[]
   statusLabels: AssetStatus[]
   totalAssets: number
+  autoAdd?: boolean
 }
 
 function getStatusIcon(statusName: string) {
@@ -112,7 +113,8 @@ export function InteractiveAssets({
   initialAssets,
   statusCounts,
   statusLabels,
-  totalAssets
+  totalAssets,
+  autoAdd
 }: InteractiveAssetsProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
@@ -249,6 +251,12 @@ export function InteractiveAssets({
       setShowCustomCategory(false)
     }
   }
+
+  useEffect(() => {
+    if (autoAdd) {
+      handleAddAsset()
+    }
+  }, [autoAdd])
 
   return (
     <>
