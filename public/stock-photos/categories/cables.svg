@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" fill="#f8fafc"/>
+  
+  <!-- Ethernet cable -->
+  <g>
+    <!-- Cable body -->
+    <path d="M 80 150 Q 120 100 180 120 Q 240 140 280 100 Q 320 60 360 80" 
+          stroke="#3b82f6" stroke-width="8" fill="none" stroke-linecap="round"/>
+    
+    <!-- RJ45 connector -->
+    <rect x="75" y="145" width="20" height="12" rx="2" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <rect x="78" y="147" width="14" height="8" rx="1" fill="#fbbf24"/>
+    <g fill="#0f172a">
+      <rect x="79" y="148" width="1" height="6"/>
+      <rect x="81" y="148" width="1" height="6"/>
+      <rect x="83" y="148" width="1" height="6"/>
+      <rect x="85" y="148" width="1" height="6"/>
+      <rect x="87" y="148" width="1" height="6"/>
+      <rect x="89" y="148" width="1" height="6"/>
+      <rect x="91" y="148" width="1" height="6"/>
+    </g>
+    
+    <!-- Other end -->
+    <rect x="355" y="75" width="20" height="12" rx="2" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <rect x="358" y="77" width="14" height="8" rx="1" fill="#fbbf24"/>
+  </g>
+  
+  <!-- Power cable -->
+  <g>
+    <!-- Cable body -->
+    <path d="M 100 250 Q 150 200 200 220 Q 250 240 300 200 Q 340 180 370 200" 
+          stroke="#1e293b" stroke-width="6" fill="none" stroke-linecap="round"/>
+    
+    <!-- Power plug -->
+    <rect x="95" y="245" width="15" height="12" rx="3" fill="#374151" stroke="#1f2937" stroke-width="1"/>
+    <rect x="98" y="248" width="3" height="6" rx="1" fill="#64748b"/>
+    <rect x="104" y="248" width="3" height="6" rx="1" fill="#64748b"/>
+    
+    <!-- IEC connector -->
+    <rect x="365" y="195" width="18" height="12" rx="2" fill="#374151" stroke="#1f2937" stroke-width="1"/>
+    <rect x="368" y="198" width="12" height="6" rx="1" fill="#0f172a"/>
+  </g>
+  
+  <!-- USB cable -->
+  <g>
+    <!-- Cable body -->
+    <path d="M 50 320 Q 100 280 160 300 Q 220 320 280 290 Q 320 270 350 290" 
+          stroke="#10b981" stroke-width="5" fill="none" stroke-linecap="round"/>
+    
+    <!-- USB-A connector -->
+    <rect x="45" y="317" width="12" height="8" rx="1" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1"/>
+    <rect x="48" y="319" width="6" height="4" rx="0.5" fill="#3b82f6"/>
+    
+    <!-- USB-C connector -->
+    <rect x="345" y="287" width="10" height="6" rx="3" fill="#e2e8f0" stroke="#cbd5e1" stroke-width="1"/>
+    <rect x="347" y="289" width="6" height="2" rx="1" fill="#6b7280"/>
+  </g>
+  
+  <!-- HDMI cable -->
+  <g>
+    <!-- Cable body -->
+    <path d="M 120 180 Q 160 160 200 180 Q 240 200 280 180 Q 320 160 350 180" 
+          stroke="#8b5cf6" stroke-width="6" fill="none" stroke-linecap="round"/>
+    
+    <!-- HDMI connector A -->
+    <polygon points="115,175 135,175 135,185 115,185" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <rect x="118" y="177" width="14" height="6" rx="1" fill="#fbbf24"/>
+    <g fill="#0f172a">
+      <rect x="120" y="178" width="1" height="4"/>
+      <rect x="122" y="178" width="1" height="4"/>
+      <rect x="124" y="178" width="1" height="4"/>
+      <rect x="126" y="178" width="1" height="4"/>
+      <rect x="128" y="178" width="1" height="4"/>
+      <rect x="130" y="178" width="1" height="4"/>
+    </g>
+    
+    <!-- HDMI connector B -->
+    <polygon points="345,175 365,175 365,185 345,185" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <rect x="348" y="177" width="14" height="6" rx="1" fill="#fbbf24"/>
+  </g>
+  
+  <!-- Cable ties -->
+  <g fill="#64748b">
+    <ellipse cx="200" cy="140" rx="12" ry="4" opacity="0.6"/>
+    <ellipse cx="250" cy="220" rx="12" ry="4" opacity="0.6"/>
+    <ellipse cx="180" cy="280" rx="12" ry="4" opacity="0.6"/>
+  </g>
+  
+  <!-- Cable labels -->
+  <g fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" font-family="Arial, sans-serif" font-size="8">
+    <rect x="170" y="110" width="30" height="12" rx="2"/>
+    <text x="185" y="119" fill="#1e293b" text-anchor="middle">CAT6</text>
+    
+    <rect x="240" y="190" width="30" height="12" rx="2"/>
+    <text x="255" y="199" fill="#1e293b" text-anchor="middle">PWR</text>
+    
+    <rect x="150" y="270" width="30" height="12" rx="2"/>
+    <text x="165" y="279" fill="#1e293b" text-anchor="middle">USB</text>
+  </g>
+</svg> 

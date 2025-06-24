@@ -58,29 +58,67 @@ async function getAssetsData() {
       },
       orderBy: {
         created_at: 'desc'
-      },
-      take: 50
-    })
-
-    // Get status counts for overview
-    const statusCounts = await prisma.asset.groupBy({
-      by: ['status_id'],
-      _count: {
-        id: true
       }
     })
 
-    const statusLabels = await prisma.statusLabel.findMany()
-    const totalAssets = await prisma.asset.count()
+    // Get status counts
+    const statusCounts = await prisma.asset.groupBy({
+      by: ['status_id'],
+      _count: {
+        _all: true
+      }
+    })
+
+    // Get all status labels
+    const statusLabels = await prisma.statusLabel.findMany({
+      select: {
+        id: true,
+        name: true,
+        color: true
+      }
+    })
 
     return {
-      assets,
-      statusCounts,
-      statusLabels,
-      totalAssets
+      assets: assets.map(asset => ({
+        ...asset,
+        id: asset.id.toString(),
+        serial_number: asset.serial_number || undefined,
+        model: {
+          ...asset.model,
+          id: asset.model.id.toString()
+        },
+        status: {
+          ...asset.status,
+          id: asset.status.id.toString(),
+          color: asset.status.color || undefined
+        },
+        assigned_to_user: asset.assigned_to_user ? {
+          ...asset.assigned_to_user,
+          id: asset.assigned_to_user.id.toString()
+        } : undefined,
+        location: asset.location ? {
+          ...asset.location,
+          id: asset.location.id.toString()
+        } : undefined,
+        department: asset.department ? {
+          ...asset.department,
+          id: asset.department.id.toString()
+        } : undefined,
+        created_at: asset.created_at
+      })),
+      statusCounts: statusCounts.map(item => ({
+        status_id: item.status_id.toString(),
+        count: item._count._all
+      })),
+      statusLabels: statusLabels.map(label => ({
+        ...label,
+        id: label.id.toString(),
+        color: label.color || undefined
+      })),
+      totalAssets: assets.length
     }
   } catch (error) {
-    console.error('Error fetching assets:', error)
+    console.error('Failed to fetch assets:', error)
     return {
       assets: [],
       statusCounts: [],
@@ -92,10 +130,10 @@ async function getAssetsData() {
 
 function AssetsLoading() {
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-center h-96">
+      <div className="flex items-center space-x-2">
         <Loader2 className="h-6 w-6 animate-spin" />
-        <span className="text-muted-foreground">Loading assets...</span>
+        <span>Loading assets...</span>
       </div>
     </div>
   )
@@ -126,42 +164,10 @@ async function AssetsContent({ autoAdd }: AssetsContentProps) {
   const data = await getAssetsData()
 
   return (
-    <InteractiveAssets 
-      initialAssets={data.assets.map(asset => ({
-        ...asset,
-        id: asset.id.toString(),
-        serial_number: asset.serial_number || undefined,
-        model: {
-          ...asset.model,
-          id: asset.model.id.toString()
-        },
-        status: {
-          ...asset.status,
-          id: asset.status.id.toString(),
-          color: asset.status.color || undefined
-        },
-        assigned_to_user: asset.assigned_to_user ? {
-          ...asset.assigned_to_user,
-          id: asset.assigned_to_user.id.toString()
-        } : undefined,
-        location: asset.location ? {
-          ...asset.location,
-          id: asset.location.id.toString()
-        } : undefined,
-        department: asset.department ? {
-          ...asset.department,
-          id: asset.department.id.toString()
-        } : undefined
-      }))}
-      statusCounts={data.statusCounts.map(item => ({
-        status_id: item.status_id.toString(),
-        count: item._count.id
-      }))}
-      statusLabels={data.statusLabels.map(label => ({
-        ...label,
-        id: label.id.toString(),
-        color: label.color || undefined
-      }))}
+    <InteractiveAssets
+      initialAssets={data.assets}
+      statusCounts={data.statusCounts}
+      statusLabels={data.statusLabels}
       totalAssets={data.totalAssets}
       autoAdd={autoAdd}
     />

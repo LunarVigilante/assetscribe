@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" fill="#f8fafc"/>
+  
+  <!-- Router/Switch body -->
+  <rect x="60" y="150" width="280" height="120" rx="8" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+  
+  <!-- Front panel -->
+  <rect x="70" y="160" width="260" height="100" rx="4" fill="#374151"/>
+  
+  <!-- Ethernet ports -->
+  <g fill="#0f172a" stroke="#64748b" stroke-width="1">
+    <rect x="80" y="180" width="12" height="8" rx="1"/>
+    <rect x="95" y="180" width="12" height="8" rx="1"/>
+    <rect x="110" y="180" width="12" height="8" rx="1"/>
+    <rect x="125" y="180" width="12" height="8" rx="1"/>
+    <rect x="140" y="180" width="12" height="8" rx="1"/>
+    <rect x="155" y="180" width="12" height="8" rx="1"/>
+    <rect x="170" y="180" width="12" height="8" rx="1"/>
+    <rect x="185" y="180" width="12" height="8" rx="1"/>
+  </g>
+  
+  <!-- Status LEDs -->
+  <g>
+    <circle cx="86" cy="200" r="2" fill="#10b981"/>
+    <circle cx="101" cy="200" r="2" fill="#10b981"/>
+    <circle cx="116" cy="200" r="2" fill="#f59e0b"/>
+    <circle cx="131" cy="200" r="2" fill="#10b981"/>
+    <circle cx="146" cy="200" r="2" fill="#ef4444"/>
+    <circle cx="161" cy="200" r="2" fill="#10b981"/>
+    <circle cx="176" cy="200" r="2" fill="#10b981"/>
+    <circle cx="191" cy="200" r="2" fill="#6b7280"/>
+  </g>
+  
+  <!-- Power port -->
+  <circle cx="300" cy="190" r="8" fill="#0f172a" stroke="#64748b" stroke-width="1"/>
+  <text x="285" y="210" font-family="Arial, sans-serif" font-size="8" fill="#94a3b8">PWR</text>
+  
+  <!-- Console port -->
+  <rect x="280" y="220" width="20" height="12" rx="2" fill="#0f172a" stroke="#64748b" stroke-width="1"/>
+  <text x="275" y="245" font-family="Arial, sans-serif" font-size="8" fill="#94a3b8">CONSOLE</text>
+  
+  <!-- Brand label -->
+  <rect x="220" y="190" width="40" height="12" rx="2" fill="#64748b"/>
+  <text x="240" y="200" font-family="Arial, sans-serif" font-size="8" fill="#f8fafc" text-anchor="middle">NET</text>
+  
+  <!-- Network cables -->
+  <g stroke-width="3" fill="none" opacity="0.8">
+    <path d="M 86 170 Q 86 140 110 140 Q 130 140 130 120" stroke="#3b82f6"/>
+    <path d="M 101 170 Q 101 130 140 130 Q 160 130 160 110" stroke="#10b981"/>
+    <path d="M 131 170 Q 131 125 170 125 Q 190 125 190 105" stroke="#f59e0b"/>
+  </g>
+  
+  <!-- Antennas -->
+  <g stroke="#374151" stroke-width="2" fill="none">
+    <line x1="320" y1="150" x2="320" y2="100"/>
+    <line x1="330" y1="150" x2="330" y2="90"/>
+    <circle cx="320" cy="95" r="5" fill="#64748b"/>
+    <circle cx="330" cy="85" r="5" fill="#64748b"/>
+  </g>
+  
+  <!-- Heat vents -->
+  <g stroke="#6b7280" stroke-width="1">
+    <line x1="250" y1="170" x2="260" y2="170"/>
+    <line x1="250" y1="175" x2="260" y2="175"/>
+    <line x1="250" y1="180" x2="260" y2="180"/>
+    <line x1="250" y1="185" x2="260" y2="185"/>
+    <line x1="250" y1="190" x2="260" y2="190"/>
+  </g>
+</svg> 

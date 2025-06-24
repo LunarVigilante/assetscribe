@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -85,6 +84,32 @@ model DepreciationMethod {
   asset_models AssetModel[]
   
   @@map("depreciation_methods")
+}
+
+model AssetCondition {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // Relations
+  assets Asset[]
+  
+  @@map("asset_conditions")
+}
+
+model MaintenanceSchedule {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // Relations
+  assets Asset[]
+  
+  @@map("maintenance_schedules")
 }
 
 model Department {
@@ -270,9 +295,12 @@ model AssetModel {
 model Asset {
   id                          Int       @id @default(autoincrement())
   asset_tag                   String    @unique
+  device_name                 String?   // User-friendly name for the device
   serial_number              String?
   model_id                   Int
   status_id                  Int
+  condition_id               Int?
+  maintenance_schedule_id    Int?
   assigned_to_user_id        Int?
   location_id                Int?
   department_id              Int?
@@ -287,17 +315,24 @@ model Asset {
   updated_at                 DateTime  @updatedAt
   
   // Relations
-  model           AssetModel    @relation(fields: [model_id], references: [id])
-  status          StatusLabel   @relation(fields: [status_id], references: [id])
-  assigned_to_user User?       @relation("AssetAssignedTo", fields: [assigned_to_user_id], references: [id])
-  location        Location?     @relation(fields: [location_id], references: [id])
-  department      Department?   @relation(fields: [department_id], references: [id])
-  supplier        Supplier?     @relation(fields: [supplier_id], references: [id])
+  model                AssetModel           @relation(fields: [model_id], references: [id])
+  status               StatusLabel          @relation(fields: [status_id], references: [id])
+  condition            AssetCondition?      @relation(fields: [condition_id], references: [id])
+  maintenance_schedule MaintenanceSchedule? @relation(fields: [maintenance_schedule_id], references: [id])
+  assigned_to_user     User?               @relation("AssetAssignedTo", fields: [assigned_to_user_id], references: [id])
+  location             Location?           @relation(fields: [location_id], references: [id])
+  department           Department?         @relation(fields: [department_id], references: [id])
+  supplier             Supplier?           @relation(fields: [supplier_id], references: [id])
   
   custom_field_values AssetCustomFieldValue[]
   attachments        AssetAttachment[]
   license_assignments LicenseAssignment[]
   kb_links           KBLink[]
+  related_links      AssetRelatedLink[]
+  
+  // Asset relationships
+  parent_relationships AssetRelationship[] @relation("ParentAsset")
+  child_relationships  AssetRelationship[] @relation("ChildAsset")
   
   @@map("assets")
 }
@@ -344,6 +379,39 @@ model AssetAttachment {
   asset Asset @relation(fields: [asset_id], references: [id], onDelete: Cascade)
   
   @@map("asset_attachments")
+}
+
+model AssetRelatedLink {
+  id          Int      @id @default(autoincrement())
+  asset_id    Int
+  link_type   String   // e.g., 'Product Manual', 'Warranty Info', 'Support Portal', 'Custom'
+  title       String   // Display name for the link
+  url         String
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+  
+  // Relations
+  asset Asset @relation(fields: [asset_id], references: [id], onDelete: Cascade)
+  
+  @@map("asset_related_links")
+}
+
+model AssetRelationship {
+  id                Int    @id @default(autoincrement())
+  parent_asset_id   Int
+  child_asset_id    Int
+  relationship_type String // e.g., "Contains", "Depends on", "Connected to", "Part of"
+  description       String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+  
+  // Relations
+  parent_asset Asset @relation("ParentAsset", fields: [parent_asset_id], references: [id], onDelete: Cascade)
+  child_asset  Asset @relation("ChildAsset", fields: [child_asset_id], references: [id], onDelete: Cascade)
+  
+  @@unique([parent_asset_id, child_asset_id, relationship_type])
+  @@map("asset_relationships")
 }
 
 // ============================================================================
@@ -615,3 +683,5 @@ model ActivityLog {
   
   @@map("activity_log")
 }
+
+

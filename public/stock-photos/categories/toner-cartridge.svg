@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" fill="#f8fafc"/>
+  
+  <!-- Cartridge body -->
+  <rect x="120" y="120" width="160" height="200" rx="8" fill="#1e293b" stroke="#334155" stroke-width="2"/>
+  
+  <!-- Top handle/grip -->
+  <rect x="140" y="100" width="120" height="30" rx="15" fill="#374151" stroke="#4b5563" stroke-width="1"/>
+  <rect x="160" y="105" width="80" height="20" rx="10" fill="#6b7280"/>
+  
+  <!-- Front label -->
+  <rect x="130" y="140" width="140" height="80" rx="4" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+  
+  <!-- Brand logo placeholder -->
+  <circle cx="200" cy="160" r="15" fill="#3b82f6"/>
+  <text x="200" y="166" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">HP</text>
+  
+  <!-- Model number -->
+  <text x="200" y="190" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#1e293b" text-anchor="middle">85A</text>
+  <text x="200" y="205" font-family="Arial, sans-serif" font-size="10" fill="#64748b" text-anchor="middle">CE285A</text>
+  
+  <!-- Color indicator -->
+  <rect x="170" y="240" width="60" height="12" rx="6" fill="#1e293b"/>
+  <text x="200" y="249" font-family="Arial, sans-serif" font-size="8" fill="#ffffff" text-anchor="middle">BLACK</text>
+  
+  <!-- Recycling symbol -->
+  <g transform="translate(240, 260)" fill="#10b981">
+    <path d="M -8 -8 L 0 8 L 8 -8 Z" opacity="0.3"/>
+    <circle r="6" fill="none" stroke="#10b981" stroke-width="2"/>
+    <text x="0" y="3" font-family="Arial, sans-serif" font-size="6" fill="#10b981" text-anchor="middle">♻</text>
+  </g>
+  
+  <!-- Bottom contacts -->
+  <g fill="#fbbf24">
+    <rect x="140" y="300" width="8" height="15" rx="2"/>
+    <rect x="155" y="300" width="8" height="15" rx="2"/>
+    <rect x="170" y="300" width="8" height="15" rx="2"/>
+    <rect x="185" y="300" width="8" height="15" rx="2"/>
+    <rect x="200" y="300" width="8" height="15" rx="2"/>
+    <rect x="215" y="300" width="8" height="15" rx="2"/>
+    <rect x="230" y="300" width="8" height="15" rx="2"/>
+    <rect x="245" y="300" width="8" height="15" rx="2"/>
+  </g>
+  
+  <!-- Side sealing tape -->
+  <rect x="115" y="160" width="5" height="120" fill="#ef4444"/>
+  <rect x="280" y="160" width="5" height="120" fill="#ef4444"/>
+  
+  <!-- Warning label -->
+  <rect x="140" y="280" width="120" height="15" rx="2" fill="#fbbf24"/>
+  <text x="200" y="290" font-family="Arial, sans-serif" font-size="8" fill="#1e293b" text-anchor="middle">⚠ REMOVE BEFORE USE</text>
+  
+  <!-- Capacity indicator -->
+  <rect x="160" y="260" width="80" height="8" rx="4" fill="#e2e8f0"/>
+  <rect x="162" y="262" width="56" height="4" rx="2" fill="#10b981"/>
+  <text x="200" y="258" font-family="Arial, sans-serif" font-size="7" fill="#64748b" text-anchor="middle">70% FULL</text>
+  
+  <!-- Protective plastic -->
+  <g opacity="0.2" fill="#3b82f6">
+    <rect x="120" y="120" width="160" height="200" rx="8"/>
+  </g>
+</svg> 

@@ -16,134 +16,168 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const assetId = parseInt(params.id)
+    const { id } = await params
     const body = await request.json()
-    const validatedData = checkoutSchema.parse(body)
+    const { action, user_id, department_id, location_id } = body
 
-    const { assigned_to_user_id, external_ticket_id, user_id, notes } = validatedData
+    const assetId = parseInt(id)
 
-    // Check if asset exists and is available
-    const asset = await prisma.asset.findUnique({
-      where: { id: assetId },
-      include: {
-        model: {
+    // Get status IDs
+    const deployedStatus = await prisma.statusLabel.findFirst({ where: { name: 'Deployed' } })
+    const inStockStatus = await prisma.statusLabel.findFirst({ where: { name: 'In-Stock' } })
+
+    if (!deployedStatus || !inStockStatus) {
+      throw new Error('Required status labels not found')
+    }
+
+    switch (action) {
+      case 'check_out':
+        // Check out asset to user/department
+        await prisma.asset.update({
+          where: { id: assetId },
+          data: {
+            assigned_to_user_id: user_id ? parseInt(user_id) : null,
+            department_id: department_id ? parseInt(department_id) : null,
+            location_id: location_id ? parseInt(location_id) : null,
+            status_id: deployedStatus.id,
+            updated_at: new Date()
+          }
+        })
+        
+        // Log the activity (find first available user or skip if none exist)
+        const firstUser = await prisma.user.findFirst({ select: { id: true } })
+        if (firstUser) {
+          await prisma.activityLog.create({
+            data: {
+              user_id: firstUser.id,
+              action_type: 'ASSET_CHECKOUT',
+              target_id: assetId,
+              target_type: 'Asset',
+              details: {
+                action: 'checked_out',
+                asset_tag: (await prisma.asset.findUnique({ where: { id: assetId }, select: { asset_tag: true } }))?.asset_tag,
+                assigned_to: user_id ? `user_${user_id}` : `department_${department_id}`
+              },
+              external_ticket_id: `AUTO-${Date.now()}`, // Auto-generated ticket ID
+              timestamp: new Date()
+            }
+          })
+        }
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Asset checked out successfully' 
+        })
+
+      case 'check_in':
+        // Check in asset (unassign)
+        await prisma.asset.update({
+          where: { id: assetId },
+          data: {
+            assigned_to_user_id: null,
+            department_id: null,
+            // Keep location for inventory tracking
+            status_id: inStockStatus.id,
+            updated_at: new Date()
+          }
+        })
+        
+        // Log the activity (find first available user or skip if none exist)
+        const firstUserForCheckin = await prisma.user.findFirst({ select: { id: true } })
+        if (firstUserForCheckin) {
+          await prisma.activityLog.create({
+            data: {
+              user_id: firstUserForCheckin.id,
+              action_type: 'ASSET_CHECKIN',
+              target_id: assetId,
+              target_type: 'Asset',
+              details: {
+                action: 'checked_in',
+                asset_tag: (await prisma.asset.findUnique({ where: { id: assetId }, select: { asset_tag: true } }))?.asset_tag,
+                note: 'Asset returned to inventory'
+              },
+              external_ticket_id: `AUTO-${Date.now()}`, // Auto-generated ticket ID
+              timestamp: new Date()
+            }
+          })
+        }
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Asset checked in successfully' 
+        })
+
+      case 'transfer':
+        // Get current asset to understand what we're transferring from
+        const currentAsset = await prisma.asset.findUnique({
+          where: { id: assetId },
           include: {
-            manufacturer: true,
-          },
-        },
-        status: true,
-        assigned_to_user: {
-          select: {
-            id: true,
-            first_name: true,
-            last_name: true,
-          },
-        },
-      },
-    })
+            assigned_to_user: true,
+            department: true
+          }
+        })
 
-    if (!asset) {
-      return NextResponse.json(
-        { success: false, error: 'Asset not found' },
-        { status: 404 }
-      )
+        if (!currentAsset) {
+          return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
+        }
+
+        // Transfer asset to new user/department
+        await prisma.asset.update({
+          where: { id: assetId },
+          data: {
+            assigned_to_user_id: user_id ? parseInt(user_id) : null,
+            department_id: department_id ? parseInt(department_id) : null,
+            location_id: location_id ? parseInt(location_id) : null,
+            updated_at: new Date()
+          }
+        })
+        
+        // Log the activity with more details
+        const fromDetails = currentAsset.assigned_to_user 
+          ? `${currentAsset.assigned_to_user.first_name} ${currentAsset.assigned_to_user.last_name}`
+          : currentAsset.department?.name || 'Unassigned'
+        const toDetails = user_id 
+          ? `user ID ${user_id}` 
+          : department_id 
+            ? `department ID ${department_id}`
+            : 'Unassigned'
+
+        // Log the activity (find first available user or skip if none exist)
+        const firstUserForTransfer = await prisma.user.findFirst({ select: { id: true } })
+        if (firstUserForTransfer) {
+          await prisma.activityLog.create({
+            data: {
+              user_id: firstUserForTransfer.id,
+              action_type: 'ASSET_TRANSFER',
+              target_id: assetId,
+              target_type: 'Asset',
+              details: {
+                action: 'transferred',
+                asset_tag: currentAsset.asset_tag,
+                from: fromDetails,
+                to: toDetails
+              },
+              external_ticket_id: `AUTO-${Date.now()}`, // Auto-generated ticket ID
+              timestamp: new Date()
+            }
+          })
+        }
+        
+        return NextResponse.json({ 
+          success: true, 
+          message: 'Asset transferred successfully' 
+        })
+
+      default:
+        return NextResponse.json(
+          { error: 'Invalid action' },
+          { status: 400 }
+        )
     }
-
-    if (asset.assigned_to_user_id) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: 'Asset is already checked out',
-          assigned_to: asset.assigned_to_user 
-        },
-        { status: 400 }
-      )
-    }
-
-    // Get the user being assigned to
-    const assignedUser = await prisma.user.findUnique({
-      where: { id: assigned_to_user_id },
-      select: {
-        id: true,
-        first_name: true,
-        last_name: true,
-        email: true,
-        is_active: true,
-      },
-    })
-
-    if (!assignedUser) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 }
-      )
-    }
-
-    if (!assignedUser.is_active) {
-      return NextResponse.json(
-        { success: false, error: 'Cannot assign asset to inactive user' },
-        { status: 400 }
-      )
-    }
-
-    // Update asset with checkout information
-    const updatedAsset = await prisma.asset.update({
-      where: { id: assetId },
-      data: {
-        assigned_to_user_id,
-        notes: notes ? `${asset.notes || ''}\n[Checkout] ${notes}`.trim() : asset.notes,
-        updated_at: new Date(),
-      },
-      include: {
-        model: {
-          include: {
-            manufacturer: true,
-            category: true,
-          },
-        },
-        status: true,
-        assigned_to_user: {
-          select: {
-            id: true,
-            first_name: true,
-            last_name: true,
-            email: true,
-          },
-        },
-        location: true,
-        department: true,
-      },
-    })
-
-    // Log the checkout activity
-    await logAssetActivity.checkout(user_id, assetId, external_ticket_id, {
-      asset_tag: asset.asset_tag,
-      model: asset.model.name,
-      manufacturer: asset.model.manufacturer.name,
-      assigned_to: {
-        id: assignedUser.id,
-        name: `${assignedUser.first_name} ${assignedUser.last_name}`,
-        email: assignedUser.email,
-      },
-      notes: notes,
-    })
-
-    return NextResponse.json({
-      success: true,
-      data: updatedAsset,
-      message: `Asset ${asset.asset_tag} checked out to ${assignedUser.first_name} ${assignedUser.last_name}`,
-    })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { success: false, error: 'Validation failed', details: error.errors },
-        { status: 400 }
-      )
-    }
-
-    console.error('Failed to checkout asset:', error)
+    console.error('Asset operation failed:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to checkout asset' },
+      { error: 'Operation failed' },
       { status: 500 }
     )
   }

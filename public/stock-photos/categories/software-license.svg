@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" fill="#f8fafc"/>
+  
+  <!-- License certificate background -->
+  <rect x="80" y="80" width="240" height="320" rx="8" fill="#f8fafc" stroke="#e2e8f0" stroke-width="2"/>
+  
+  <!-- Header section -->
+  <rect x="80" y="80" width="240" height="60" rx="8" fill="#3b82f6"/>
+  <rect x="80" y="130" width="240" height="10" fill="#3b82f6"/>
+  
+  <!-- Software icon -->
+  <rect x="100" y="100" width="30" height="30" rx="4" fill="#ffffff" opacity="0.9"/>
+  <rect x="108" y="108" width="14" height="14" rx="2" fill="#3b82f6"/>
+  <circle cx="115" cy="115" r="3" fill="#ffffff"/>
+  
+  <!-- Title -->
+  <text x="140" y="115" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#ffffff">SOFTWARE</text>
+  <text x="140" y="128" font-family="Arial, sans-serif" font-size="12" fill="#ffffff">LICENSE</text>
+  
+  <!-- Security seal -->
+  <circle cx="280" cy="110" r="20" fill="#10b981" opacity="0.9"/>
+  <path d="M 273 107 L 278 112 L 287 103" stroke="#ffffff" stroke-width="2" fill="none"/>
+  
+  <!-- License key -->
+  <rect x="100" y="170" width="200" height="30" rx="4" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+  <text x="200" y="188" font-family="monospace" font-size="12" fill="#475569" text-anchor="middle">XXXXX-XXXXX-XXXXX-XXXXX</text>
+  
+  <!-- Product details -->
+  <g fill="#64748b" font-family="Arial, sans-serif" font-size="10">
+    <text x="100" y="230">Product:</text>
+    <text x="170" y="230" fill="#1e293b">Professional Edition</text>
+    
+    <text x="100" y="250">Version:</text>
+    <text x="170" y="250" fill="#1e293b">2024.1</text>
+    
+    <text x="100" y="270">Seats:</text>
+    <text x="170" y="270" fill="#1e293b">50 Users</text>
+    
+    <text x="100" y="290">Expires:</text>
+    <text x="170" y="290" fill="#1e293b">Dec 31, 2024</text>
+  </g>
+  
+  <!-- QR Code placeholder -->
+  <rect x="250" y="220" width="40" height="40" rx="2" fill="#1e293b"/>
+  <g fill="#ffffff">
+    <rect x="253" y="223" width="4" height="4"/>
+    <rect x="260" y="223" width="4" height="4"/>
+    <rect x="267" y="223" width="4" height="4"/>
+    <rect x="253" y="230" width="4" height="4"/>
+    <rect x="267" y="230" width="4" height="4"/>
+    <rect x="253" y="237" width="4" height="4"/>
+    <rect x="260" y="237" width="4" height="4"/>
+    <rect x="267" y="237" width="4" height="4"/>
+    <rect x="283" y="223" width="4" height="4"/>
+    <rect x="283" y="237" width="4" height="4"/>
+    <rect x="283" y="250" width="4" height="4"/>
+    <rect x="276" y="250" width="4" height="4"/>
+    <rect x="269" y="250" width="4" height="4"/>
+  </g>
+  
+  <!-- Terms section -->
+  <line x1="100" y1="320" x2="300" y2="320" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="100" y="340" font-family="Arial, sans-serif" font-size="8" fill="#94a3b8">Licensed under terms and conditions</text>
+  <text x="100" y="355" font-family="Arial, sans-serif" font-size="8" fill="#94a3b8">© 2024 Software Company. All rights reserved.</text>
+  
+  <!-- Security hologram effect -->
+  <g opacity="0.3">
+    <circle cx="200" cy="200" r="80" fill="none" stroke="#3b82f6" stroke-width="1"/>
+    <circle cx="200" cy="200" r="60" fill="none" stroke="#10b981" stroke-width="1"/>
+    <circle cx="200" cy="200" r="40" fill="none" stroke="#f59e0b" stroke-width="1"/>
+  </g>
+</svg> 

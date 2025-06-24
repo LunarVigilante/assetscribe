@@ -1,4 +1,4 @@
-import { User, Role, Permission } from '@/generated/prisma'
+import { Prisma } from '@prisma/client'
 import { prisma } from './prisma'
 import { Permission as PermissionType } from '@/types'
 
@@ -35,8 +35,8 @@ export async function userHasPermission(userId: number, requiredPermission: Perm
   }
 
   // Get all permissions for the user through their roles
-  const userPermissions = user.user_roles.flatMap(userRole => 
-    userRole.role.role_permissions.map(rolePermission => 
+  const userPermissions = user.user_roles.flatMap((userRole: any) => 
+    userRole.role.role_permissions.map((rolePermission: any) => 
       rolePermission.permission.permission_name
     )
   )
@@ -52,8 +52,8 @@ export async function userHasAnyPermission(userId: number, permissions: Permissi
     return false
   }
 
-  const userPermissions = user.user_roles.flatMap(userRole => 
-    userRole.role.role_permissions.map(rolePermission => 
+  const userPermissions = user.user_roles.flatMap((userRole: any) => 
+    userRole.role.role_permissions.map((rolePermission: any) => 
       rolePermission.permission.permission_name
     )
   )
@@ -69,8 +69,8 @@ export async function getUserPermissions(userId: number): Promise<string[]> {
     return []
   }
 
-  return user.user_roles.flatMap(userRole => 
-    userRole.role.role_permissions.map(rolePermission => 
+  return user.user_roles.flatMap((userRole: any) => 
+    userRole.role.role_permissions.map((rolePermission: any) => 
       rolePermission.permission.permission_name
     )
   )

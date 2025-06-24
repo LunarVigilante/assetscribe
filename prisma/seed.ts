@@ -1,4 +1,4 @@
-import { PrismaClient } from '../src/generated/prisma'
+import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -839,6 +839,41 @@ async function main() {
       }
     })
   ])
+
+  // Seed Asset Conditions
+  const assetConditions = [
+    'New',
+    'Excellent', 
+    'Good',
+    'Fair',
+    'Poor',
+    'Damaged'
+  ]
+
+  for (const condition of assetConditions) {
+    await prisma.assetCondition.upsert({
+      where: { name: condition },
+      update: {},
+      create: { name: condition }
+    })
+  }
+
+  // Seed Maintenance Schedules  
+  const maintenanceSchedules = [
+    'Monthly',
+    'Quarterly',
+    'Semi-Annual', 
+    'Annual',
+    'As Needed'
+  ]
+
+  for (const schedule of maintenanceSchedules) {
+    await prisma.maintenanceSchedule.upsert({
+      where: { name: schedule },
+      update: {},
+      create: { name: schedule }
+    })
+  }
 
   console.log('✅ Seed completed successfully!')
   console.log(`📊 Created:

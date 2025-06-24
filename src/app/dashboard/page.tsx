@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 // Layout is handled by root layout, no need to import MainLayout
-import { PlusCircle, AlertTriangle, Clock, Package, Users, HardDrive } from 'lucide-react'
+import { PlusCircle, AlertTriangle, Clock, Package, Users, HardDrive, Search, User, Monitor, Smartphone } from 'lucide-react'
 
 // Dashboard widget data types
 interface DashboardData {
@@ -22,7 +23,92 @@ interface DashboardData {
 export default function DashboardPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchResults, setSearchResults] = useState<any[]>([])
+  const [showSearchResults, setShowSearchResults] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
   const router = useRouter()
+
+  // Global search function
+  const handleGlobalSearch = async (query: string) => {
+    if (!query.trim()) {
+      setShowSearchResults(false)
+      setSearchResults([])
+      return
+    }
+
+    setSearchLoading(true)
+    setShowSearchResults(true)
+
+    try {
+      // Mock search results - in real app, this would call multiple APIs
+      const mockSearchResults = [
+        // Assets
+        {
+          type: 'asset',
+          id: 'LT-001',
+          title: 'MacBook Pro 16-inch',
+          subtitle: 'LT-001 • Assigned to John Doe',
+          description: 'Apple MacBook Pro 16-inch (2023)',
+          icon: Monitor,
+          onClick: () => router.push('/assets/1')
+        },
+        {
+          type: 'asset', 
+          id: 'DT-205',
+          title: 'Dell OptiPlex 7090',
+          subtitle: 'DT-205 • In Stock',
+          description: 'Dell OptiPlex 7090 Desktop',
+          icon: Monitor,
+          onClick: () => router.push('/assets/2')
+        },
+        // Users
+        {
+          type: 'user',
+          id: 'user-1',
+          title: 'John Doe',
+          subtitle: 'Software Engineer',
+          description: 'john.doe@company.com • IT Department',
+          icon: User,
+          onClick: () => router.push('/users')
+        },
+        {
+          type: 'user',
+          id: 'user-2', 
+          title: 'Jane Smith',
+          subtitle: 'Product Manager',
+          description: 'jane.smith@company.com • Product Team',
+          icon: User,
+          onClick: () => router.push('/users')
+        }
+      ]
+
+      // Filter results based on search query
+      const filteredResults = mockSearchResults.filter(item =>
+        item.title.toLowerCase().includes(query.toLowerCase()) ||
+        item.subtitle.toLowerCase().includes(query.toLowerCase()) ||
+        item.description.toLowerCase().includes(query.toLowerCase())
+      )
+
+      setTimeout(() => {
+        setSearchResults(filteredResults)
+        setSearchLoading(false)
+      }, 300) // Simulate API delay
+
+    } catch (error) {
+      console.error('Search error:', error)
+      setSearchLoading(false)
+    }
+  }
+
+  // Handle search input changes
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      handleGlobalSearch(searchTerm)
+    }, 300)
+
+    return () => clearTimeout(debounceTimer)
+  }, [searchTerm])
 
   useEffect(() => {
     // TODO: Replace with actual API call
@@ -97,17 +183,80 @@ export default function DashboardPage() {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">AssetScribe Dashboard</h1>
-          <p className="text-muted-foreground">
-            Welcome to your Asset and Configuration Management Platform
-          </p>
+      <div className="space-y-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold tracking-tight">AssetScribe Dashboard</h1>
+            <p className="text-muted-foreground">
+              Welcome to your Asset and Configuration Management Platform
+            </p>
+          </div>
+          
+          {/* Global Search Bar */}
+          <div className="flex-1 max-w-md relative">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search assets, users, models..."
+                className="w-full pl-10 h-10"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onFocus={() => searchTerm && setShowSearchResults(true)}
+                onBlur={() => setTimeout(() => setShowSearchResults(false), 200)}
+              />
+            </div>
+
+            {/* Search Results Dropdown */}
+            {showSearchResults && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+                {searchLoading ? (
+                  <div className="p-4 text-center">
+                    <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+                    <p className="text-sm text-muted-foreground mt-2">Searching...</p>
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  <div className="py-2">
+                    {searchResults.map((result) => {
+                      const IconComponent = result.icon
+                      return (
+                        <div
+                          key={result.id}
+                          className="flex items-center px-4 py-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
+                          onClick={result.onClick}
+                        >
+                          <div className={`p-2 rounded-lg mr-3 ${
+                            result.type === 'asset' ? 'bg-blue-100 text-blue-600' : 'bg-green-100 text-green-600'
+                          }`}>
+                            <IconComponent className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{result.title}</div>
+                            <div className="text-xs text-muted-foreground">{result.subtitle}</div>
+                            <div className="text-xs text-muted-foreground mt-1">{result.description}</div>
+                          </div>
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            {result.type}
+                          </Badge>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : searchTerm ? (
+                  <div className="p-4 text-center">
+                    <Package className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm font-medium">No results found</p>
+                    <p className="text-xs text-muted-foreground">Try searching for assets, users, or models</p>
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          <Button onClick={() => router.push('/assets/add')}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Quick Add Asset
+          </Button>
         </div>
-        <Button onClick={() => router.push('/assets?add=true')}>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Quick Add Asset
-        </Button>
       </div>
 
       {/* Main Dashboard Grid */}
@@ -299,7 +448,7 @@ export default function DashboardPage() {
             ))}
           </div>
         </CardContent>
-             </Card>
-     </div>
+      </Card>
+    </div>
   )
 } 

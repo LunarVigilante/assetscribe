@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <style>
+      .printer-body { fill: #e5e7eb; stroke: #6b7280; stroke-width: 1.5; }
+      .printer-top { fill: #f3f4f6; stroke: #6b7280; stroke-width: 1.5; }
+      .printer-paper { fill: #ffffff; stroke: #d1d5db; stroke-width: 1; }
+      .printer-button { fill: #3b82f6; }
+      .printer-display { fill: #1f2937; }
+    </style>
+  </defs>
+  
+  <!-- Main printer body -->
+  <rect x="15" y="35" width="70" height="40" rx="3" class="printer-body"/>
+  
+  <!-- Paper tray at bottom -->
+  <rect x="20" y="70" width="60" height="8" rx="2" class="printer-paper"/>
+  
+  <!-- Top paper feed -->
+  <rect x="25" y="25" width="50" height="15" rx="2" class="printer-top"/>
+  
+  <!-- Paper coming out -->
+  <rect x="30" y="15" width="40" height="12" rx="1" class="printer-paper"/>
+  
+  <!-- Control panel -->
+  <rect x="45" y="42" width="25" height="12" rx="1" class="printer-display"/>
+  
+  <!-- Power button -->
+  <circle cx="75" cy="48" r="3" class="printer-button"/>
+  
+  <!-- Status indicators -->
+  <circle cx="22" cy="48" r="1.5" fill="#10b981"/>
+  <circle cx="28" cy="48" r="1.5" fill="#f59e0b"/>
+</svg> 

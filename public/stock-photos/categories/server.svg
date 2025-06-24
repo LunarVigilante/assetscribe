@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <defs>
+    <style>
+      .server-case { fill: #374151; stroke: #1f2937; stroke-width: 1; }
+      .server-panel { fill: #1f2937; }
+      .server-led { fill: #10b981; }
+      .server-led-warn { fill: #f59e0b; }
+      .server-drive { fill: #6b7280; }
+    </style>
+  </defs>
+  
+  <!-- Server case -->
+  <rect x="10" y="25" width="80" height="50" rx="3" class="server-case"/>
+  
+  <!-- Server units (1U rack units) -->
+  <rect x="15" y="30" width="70" height="12" rx="1" class="server-panel"/>
+  <rect x="15" y="45" width="70" height="12" rx="1" class="server-panel"/>
+  <rect x="15" y="60" width="70" height="12" rx="1" class="server-panel"/>
+  
+  <!-- LEDs for each unit -->
+  <circle cx="20" cy="36" r="1.5" class="server-led"/>
+  <circle cx="25" cy="36" r="1.5" class="server-led-warn"/>
+  
+  <circle cx="20" cy="51" r="1.5" class="server-led"/>
+  <circle cx="25" cy="51" r="1.5" class="server-led"/>
+  
+  <circle cx="20" cy="66" r="1.5" class="server-led"/>
+  <circle cx="25" cy="66" r="1.5" class="server-led"/>
+  
+  <!-- Drive bays -->
+  <rect x="35" y="32" width="8" height="8" rx="1" class="server-drive"/>
+  <rect x="45" y="32" width="8" height="8" rx="1" class="server-drive"/>
+  <rect x="55" y="32" width="8" height="8" rx="1" class="server-drive"/>
+  <rect x="65" y="32" width="8" height="8" rx="1" class="server-drive"/>
+  
+  <rect x="35" y="47" width="8" height="8" rx="1" class="server-drive"/>
+  <rect x="45" y="47" width="8" height="8" rx="1" class="server-drive"/>
+  <rect x="55" y="47" width="8" height="8" rx="1" class="server-drive"/>
+  <rect x="65" y="47" width="8" height="8" rx="1" class="server-drive"/>
+  
+  <rect x="35" y="62" width="8" height="8" rx="1" class="server-drive"/>
+  <rect x="45" y="62" width="8" height="8" rx="1" class="server-drive"/>
+  <rect x="55" y="62" width="8" height="8" rx="1" class="server-drive"/>
+  <rect x="65" y="62" width="8" height="8" rx="1" class="server-drive"/>
+  
+  <!-- Ventilation -->
+  <g stroke="#6b7280" stroke-width="0.5" fill="none">
+    <line x1="75" y1="32" x2="80" y2="32"/>
+    <line x1="75" y1="34" x2="80" y2="34"/>
+    <line x1="75" y1="36" x2="80" y2="36"/>
+    <line x1="75" y1="38" x2="80" y2="38"/>
+    
+    <line x1="75" y1="47" x2="80" y2="47"/>
+    <line x1="75" y1="49" x2="80" y2="49"/>
+    <line x1="75" y1="51" x2="80" y2="51"/>
+    <line x1="75" y1="53" x2="80" y2="53"/>
+    
+    <line x1="75" y1="62" x2="80" y2="62"/>
+    <line x1="75" y1="64" x2="80" y2="64"/>
+    <line x1="75" y1="66" x2="80" y2="66"/>
+    <line x1="75" y1="68" x2="80" y2="68"/>
+  </g>
+  
+  <!-- Rack mount ears -->
+  <rect x="5" y="30" width="4" height="3" rx="1" fill="#9ca3af"/>
+  <rect x="5" y="67" width="4" height="3" rx="1" fill="#9ca3af"/>
+  <rect x="91" y="30" width="4" height="3" rx="1" fill="#9ca3af"/>
+  <rect x="91" y="67" width="4" height="3" rx="1" fill="#9ca3af"/>
+</svg> 
