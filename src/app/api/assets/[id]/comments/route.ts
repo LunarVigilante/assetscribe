@@ -8,36 +8,26 @@ export async function GET(
   try {
     const { id } = await params
     
-    // For now, return mock comments since we don't have a comments table yet
-    // In production, this would query the database
-    const mockComments = [
-      {
-        id: 1,
-        content: "This laptop has been working great for the past 6 months. No issues to report.",
-        created_at: new Date('2024-06-20T10:30:00Z'),
-        updated_at: new Date('2024-06-20T10:30:00Z'),
+    const comments = await prisma.comment.findMany({
+      where: {
+        asset_id: parseInt(id)
+      },
+      include: {
         user: {
-          id: '1',
-          first_name: 'Sarah',
-          last_name: 'Johnson',
-          email: 'sarah.johnson@company.com'
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true
+          }
         }
       },
-      {
-        id: 2,
-        content: "Updated RAM from 8GB to 16GB. Performance significantly improved. Receipt attached to documents.",
-        created_at: new Date('2024-06-21T14:15:00Z'),
-        updated_at: new Date('2024-06-21T14:20:00Z'),
-        user: {
-          id: '2',
-          first_name: 'John',
-          last_name: 'Smith',
-          email: 'john.smith@company.com'
-        }
+      orderBy: {
+        created_at: 'desc'
       }
-    ]
+    })
 
-    return NextResponse.json(mockComments)
+    return NextResponse.json(comments)
   } catch (error) {
     console.error('Failed to fetch comments:', error)
     return NextResponse.json(
@@ -62,20 +52,48 @@ export async function POST(
       )
     }
 
-    // For now, return a mock response since we don't have a comments table yet
-    // In production, this would create a new comment in the database
-    const newComment = {
-      id: Date.now(), // Mock ID
-      content: content.trim(),
-      created_at: new Date(),
-      updated_at: new Date(),
-      user: {
-        id: '1', // This would come from authentication
-        first_name: 'Current',
-        last_name: 'User',
-        email: 'current.user@company.com'
+    // Create new comment in database
+    // For now, using user ID 1 - in production, this would come from authentication
+    const newComment = await prisma.comment.create({
+      data: {
+        asset_id: parseInt(id),
+        user_id: 1, // TODO: Get from authenticated user session
+        content: content.trim()
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true
+          }
+        }
       }
-    }
+    })
+
+    // Log the activity
+    const asset = await prisma.asset.findUnique({
+      where: { id: parseInt(id) },
+      select: { asset_tag: true }
+    })
+
+    await prisma.activityLog.create({
+      data: {
+        user_id: 1, // Same user who created the comment
+        action_type: 'COMMENT_ADD',
+        target_id: parseInt(id),
+        target_type: 'Asset',
+        details: {
+          action: 'added_comment',
+          asset_tag: asset?.asset_tag,
+          comment_preview: content.trim().substring(0, 50) + (content.trim().length > 50 ? '...' : ''),
+          performed_by: `${newComment.user.first_name} ${newComment.user.last_name}`
+        },
+        external_ticket_id: `AUTO-${Date.now()}`,
+        timestamp: new Date()
+      }
+    })
 
     return NextResponse.json(newComment)
   } catch (error) {

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -26,7 +26,8 @@ import {
   MapPin,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Wrench
 } from 'lucide-react'
 
 // Types for our asset data
@@ -102,19 +103,49 @@ function getStatusIcon(statusName: string) {
 
 function getStatusVariant(statusName: string): "default" | "secondary" | "destructive" | "outline" {
   switch (statusName.toLowerCase()) {
+    case 'deployed':
     case 'active':
-      return 'default'
-    case 'inactive':
-      return 'secondary'
+      return 'default' // Green
+    case 'in-stock':
+    case 'available':
+      return 'secondary' // Blue/Gray
     case 'in repair':
-      return 'destructive'
+    case 'maintenance':
+      return 'destructive' // Red/Orange
     case 'retired':
-      return 'destructive'
+    case 'disposed':
     case 'lost/stolen':
-      return 'destructive'
+      return 'destructive' // Red
     default:
       return 'outline'
   }
+}
+
+// Helper function to get status badge with custom colors
+function getStatusBadge(status: AssetStatus) {
+  const variant = getStatusVariant(status.name)
+  const customColor = status.color
+  
+  if (customColor) {
+    return (
+      <Badge 
+        variant="outline" 
+        style={{ 
+          backgroundColor: `${customColor}20`, 
+          borderColor: customColor, 
+          color: customColor 
+        }}
+      >
+        {status.name}
+      </Badge>
+    )
+  }
+  
+  return (
+    <Badge variant={variant}>
+      {status.name}
+    </Badge>
+  )
 }
 
 // Helper function to check if asset is assigned
@@ -271,6 +302,7 @@ export function InteractiveAssets({
   const [customCategory, setCustomCategory] = useState('')
   const [showCustomCategory, setShowCustomCategory] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
   
   // Photo handling state  
   const [photoOption, setPhotoOption] = useState<'model' | 'unique' | 'stock'>('stock')
@@ -320,6 +352,23 @@ export function InteractiveAssets({
   useEffect(() => {
     fetchDropdownData()
   }, [])
+
+  // Handle outside clicks to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setOpenDropdown(null)
+      }
+    }
+
+    if (openDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [openDropdown])
 
   const fetchDropdownData = async () => {
     try {
@@ -1771,7 +1820,7 @@ export function InteractiveAssets({
           </CardContent>
         </Card>
 
-        {statusOverview.slice(0, 3).map((status, index) => (
+        {statusOverview.slice(0, 2).map((status, index) => (
           <Card key={index} className="cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => setSelectedStatus(selectedStatus === status.name ? 'all' : status.name)}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -1786,6 +1835,23 @@ export function InteractiveAssets({
             </CardContent>
           </Card>
         ))}
+
+        {/* In Repair Status Card - Always shown */}
+        <Card className="cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => setSelectedStatus(selectedStatus === 'In Repair' ? 'all' : 'In Repair')}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">In Repair</CardTitle>
+            <Wrench className="h-4 w-4 text-yellow-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {statusOverview.find(s => s.name.toLowerCase().includes('repair'))?.count || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {totalAssets > 0 ? (((statusOverview.find(s => s.name.toLowerCase().includes('repair'))?.count || 0) / totalAssets) * 100).toFixed(1) : 0}% of total
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Search and Filters */}
@@ -1925,7 +1991,7 @@ export function InteractiveAssets({
                   className="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
                   onClick={() => handleViewAsset(asset)}
                 >
-                  {/* Desktop Layout */}
+                                            {/* Desktop Layout */}
                   <div className="hidden lg:grid grid-cols-12 gap-4 items-center py-3">
                     <div className="col-span-2 pl-2">
                       <div className="font-medium">{asset.asset_tag}</div>
@@ -1961,13 +2027,14 @@ export function InteractiveAssets({
                       )}
                     </div>
                     <div className="col-span-1">
-                      <Badge variant={getStatusVariant(asset.status.name)}>
-                        {asset.status.name}
-                      </Badge>
+                      {getStatusBadge(asset.status)}
                     </div>
                     <div className="col-span-2">
                       <div className="text-sm">
-                        {asset.location?.name || 'No location'}
+                        {asset.assigned_to_user && asset.location 
+                          ? asset.location.name 
+                          : asset.location?.name || (asset.assigned_to_user ? 'N/A' : 'Unassigned')
+                        }
                       </div>
                       {asset.department && (
                         <div className="text-xs text-muted-foreground">
@@ -1989,62 +2056,73 @@ export function InteractiveAssets({
                           <Edit className="h-4 w-4" />
                         </Button>
                         
-                        {/* Show Check Out button if asset is not assigned, otherwise show ellipses menu */}
-                        {!isAssetAssigned(asset) ? (
+                        {/* Always show ellipses menu */}
+                        <div className="relative" ref={openDropdown === `dropdown-${asset.id}` ? dropdownRef : null}>
                           <Button 
-                            variant="default" 
-                            size="sm"
+                            variant="ghost" 
+                            size="sm" 
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleAction('Check Out', asset)
+                              handleMoreActions(asset)
                             }} 
-                            title="Check Out Asset"
+                            title="More Actions"
                           >
-                            Check Out
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        ) : (
-                          <div className="relative">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleMoreActions(asset)
-                              }} 
-                              title="More Actions"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                            {openDropdown === `dropdown-${asset.id}` && (
-                              <div className="absolute right-0 top-8 z-50 bg-background border rounded-md shadow-lg py-1 w-36">
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
-                                  onClick={() => handleAction('Check In', asset)}
-                                >
-                                  Check In
-                                </button>
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
-                                  onClick={() => handleAction('Transfer', asset)}
-                                >
-                                  Transfer
-                                </button>
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
-                                  onClick={() => handleAction('Maintenance', asset)}
-                                >
-                                  Maintenance
-                                </button>
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-destructive"
-                                  onClick={() => handleAction('Retire', asset)}
-                                >
-                                  Retire Asset
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          {openDropdown === `dropdown-${asset.id}` && (
+                            <div className="absolute right-0 top-8 z-50 bg-background border rounded-md shadow-lg py-1 w-36">
+                              {!isAssetAssigned(asset) ? (
+                                <>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                                    onClick={() => handleAction('Assign', asset)}
+                                  >
+                                    Assign
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                                    onClick={() => handleAction('Maintenance', asset)}
+                                  >
+                                    Maintenance
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-destructive"
+                                    onClick={() => handleAction('Retire', asset)}
+                                  >
+                                    Retire Asset
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                                    onClick={() => handleAction('Check In', asset)}
+                                  >
+                                    Check In
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                                    onClick={() => handleAction('Transfer', asset)}
+                                  >
+                                    Transfer
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                                    onClick={() => handleAction('Maintenance', asset)}
+                                  >
+                                    Maintenance
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-destructive"
+                                    onClick={() => handleAction('Retire', asset)}
+                                  >
+                                    Retire Asset
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2074,69 +2152,78 @@ export function InteractiveAssets({
                           <Edit className="h-4 w-4" />
                         </Button>
                         
-                        {/* Show Check Out button if asset is not assigned, otherwise show ellipses menu */}
-                        {!isAssetAssigned(asset) ? (
+                        {/* Always show ellipses menu */}
+                        <div className="relative" ref={openDropdown === `dropdown-${asset.id}` ? dropdownRef : null}>
                           <Button 
-                            variant="default" 
-                            size="sm"
+                            variant="ghost" 
+                            size="sm" 
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleAction('Check Out', asset)
+                              handleMoreActions(asset)
                             }} 
-                            title="Check Out Asset"
+                            title="More Actions"
                           >
-                            Check Out
+                            <MoreHorizontal className="h-4 w-4" />
                           </Button>
-                        ) : (
-                          <div className="relative">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleMoreActions(asset)
-                              }} 
-                              title="More Actions"
-                            >
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                            {openDropdown === `dropdown-${asset.id}` && (
-                              <div className="absolute right-0 top-8 z-50 bg-background border rounded-md shadow-lg py-1 w-36">
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
-                                  onClick={() => handleAction('Check In', asset)}
-                                >
-                                  Check In
-                                </button>
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
-                                  onClick={() => handleAction('Transfer', asset)}
-                                >
-                                  Transfer
-                                </button>
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
-                                  onClick={() => handleAction('Maintenance', asset)}
-                                >
-                                  Maintenance
-                                </button>
-                                <button
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-destructive"
-                                  onClick={() => handleAction('Retire', asset)}
-                                >
-                                  Retire Asset
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          {openDropdown === `dropdown-${asset.id}` && (
+                            <div className="absolute right-0 top-8 z-50 bg-background border rounded-md shadow-lg py-1 w-36">
+                              {!isAssetAssigned(asset) ? (
+                                <>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                                    onClick={() => handleAction('Assign', asset)}
+                                  >
+                                    Assign
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                                    onClick={() => handleAction('Maintenance', asset)}
+                                  >
+                                    Maintenance
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-destructive"
+                                    onClick={() => handleAction('Retire', asset)}
+                                  >
+                                    Retire Asset
+                                  </button>
+                                </>
+                              ) : (
+                                <>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                                    onClick={() => handleAction('Check In', asset)}
+                                  >
+                                    Check In
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                                    onClick={() => handleAction('Transfer', asset)}
+                                  >
+                                    Transfer
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                                    onClick={() => handleAction('Maintenance', asset)}
+                                  >
+                                    Maintenance
+                                  </button>
+                                  <button
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted text-destructive"
+                                    onClick={() => handleAction('Retire', asset)}
+                                  >
+                                    Retire Asset
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3 text-sm">
-                      <Badge variant={getStatusVariant(asset.status.name)}>
-                        {asset.status.name}
-                      </Badge>
+                      {getStatusBadge(asset.status)}
                       <Badge variant="outline">
                         {asset.model.category.name}
                       </Badge>
@@ -2162,7 +2249,10 @@ export function InteractiveAssets({
                       <div className="flex items-center gap-2">
                         <MapPin className="h-4 w-4 text-muted-foreground" />
                         <span>
-                          {asset.location?.name || 'No location'}
+                          {asset.assigned_to_user && asset.location 
+                            ? asset.location.name 
+                            : asset.location?.name || (asset.assigned_to_user ? 'N/A' : 'Unassigned')
+                          }
                           {asset.department && ` • ${asset.department.name}`}
                         </span>
                       </div>

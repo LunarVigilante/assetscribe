@@ -18,8 +18,8 @@ export function getCategoryStockPhotoUrls(categoryName: string): string[] {
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
   
-  // Priority order: traditional formats first, then SVG as fallback
-  const formats = ['jpg', 'jpeg', 'png', 'webp', 'svg']
+  // Priority order: PNG > JPG > WebP > SVG (SVG as final fallback)
+  const formats = ['png', 'jpg', 'webp', 'svg']
   
   return formats.map(format => `/stock-photos/categories/${sanitizedName}.${format}`)
 }

@@ -16,20 +16,72 @@ export async function PUT(
       )
     }
 
-    // For now, return a mock response since we don't have a comments table yet
-    // In production, this would update the comment in the database
-    const updatedComment = {
-      id: parseInt(commentId),
-      content: content.trim(),
-      created_at: new Date('2024-06-20T10:30:00Z'),
-      updated_at: new Date(),
-      user: {
-        id: '1',
-        first_name: 'Current',
-        last_name: 'User',
-        email: 'current.user@company.com'
+    // Get the original comment for audit trail
+    const originalComment = await prisma.comment.findUnique({
+      where: { id: parseInt(commentId) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true
+          }
+        }
       }
+    })
+
+    if (!originalComment) {
+      return NextResponse.json(
+        { error: 'Comment not found' },
+        { status: 404 }
+      )
     }
+
+    // Update comment in database
+    const updatedComment = await prisma.comment.update({
+      where: {
+        id: parseInt(commentId)
+      },
+      data: {
+        content: content.trim(),
+        updated_at: new Date()
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true
+          }
+        }
+      }
+    })
+
+    // Log the activity
+    const asset = await prisma.asset.findUnique({
+      where: { id: parseInt(id) },
+      select: { asset_tag: true }
+    })
+
+    await prisma.activityLog.create({
+      data: {
+        user_id: updatedComment.user.id,
+        action_type: 'COMMENT_EDIT',
+        target_id: parseInt(id),
+        target_type: 'Asset',
+        details: {
+          action: 'edited_comment',
+          asset_tag: asset?.asset_tag,
+          comment_id: parseInt(commentId),
+          old_content: originalComment.content.substring(0, 50) + (originalComment.content.length > 50 ? '...' : ''),
+          new_content: content.trim().substring(0, 50) + (content.trim().length > 50 ? '...' : ''),
+          performed_by: `${updatedComment.user.first_name} ${updatedComment.user.last_name}`
+        },
+        external_ticket_id: `AUTO-${Date.now()}`,
+        timestamp: new Date()
+      }
+    })
 
     return NextResponse.json(updatedComment)
   } catch (error) {
@@ -42,15 +94,64 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string; commentId: string } }
 ) {
   try {
     const { id, commentId } = await params
 
-    // For now, just return success since we don't have a comments table yet
-    // In production, this would delete the comment from the database
-    
+    // Get the comment before deletion for audit trail
+    const commentToDelete = await prisma.comment.findUnique({
+      where: { id: parseInt(commentId) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true
+          }
+        }
+      }
+    })
+
+    if (!commentToDelete) {
+      return NextResponse.json(
+        { error: 'Comment not found' },
+        { status: 404 }
+      )
+    }
+
+    // Delete comment from database
+    await prisma.comment.delete({
+      where: {
+        id: parseInt(commentId)
+      }
+    })
+
+    // Log the activity
+    const asset = await prisma.asset.findUnique({
+      where: { id: parseInt(id) },
+      select: { asset_tag: true }
+    })
+
+    await prisma.activityLog.create({
+      data: {
+        user_id: commentToDelete.user.id,
+        action_type: 'COMMENT_DELETE',
+        target_id: parseInt(id),
+        target_type: 'Asset',
+        details: {
+          action: 'deleted_comment',
+          asset_tag: asset?.asset_tag,
+          comment_id: parseInt(commentId),
+          deleted_content: commentToDelete.content.substring(0, 50) + (commentToDelete.content.length > 50 ? '...' : ''),
+          performed_by: `${commentToDelete.user.first_name} ${commentToDelete.user.last_name}`
+        },
+        external_ticket_id: `AUTO-${Date.now()}`,
+        timestamp: new Date()
+      }
+    })
+
     return NextResponse.json({ message: 'Comment deleted successfully' })
   } catch (error) {
     console.error('Failed to delete comment:', error)

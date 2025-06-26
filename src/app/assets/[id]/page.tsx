@@ -118,10 +118,28 @@ type Asset = {
   ram_gb?: number
   storage_type?: string
   storage_size_gb?: number
+  storage_unit?: string
   screen_size?: string
   gpu?: string
   operating_system?: string
   bitlocker_recovery_key?: string
+  // Desktop-specific fields
+  usb_ports_type?: string
+  display_ports_type?: string
+  has_builtin_wifi?: boolean
+  has_cd_drive?: boolean
+  psu_type?: string
+  psu_wattage?: number
+  psu_cable_type?: string
+  // System and Network tracking
+  os_install_date?: Date
+  backup_type?: string
+  last_backup_date?: Date
+  network_type?: string
+  static_ip_address?: string
+  vlan?: string
+  switch_name?: string
+  switch_port?: string
   // Related links
   related_links?: {
     id: number
@@ -157,6 +175,32 @@ type Asset = {
       }
     }[]
   }
+}
+
+// Helper functions to check if sections have content
+function hasAssetInformation(asset: Asset): boolean {
+  return !!(asset.condition || asset.supplier || asset.maintenance_schedule || asset.verification_interval_months || asset.warranty_expiry_date)
+}
+
+function hasHardwareSpecifications(asset: Asset): boolean {
+  return !!(asset.cpu || asset.ram_gb || asset.storage_type || asset.storage_size_gb || asset.screen_size || 
+           asset.gpu || asset.operating_system || asset.bitlocker_recovery_key || asset.usb_ports_type || 
+           asset.display_ports_type || asset.has_builtin_wifi || asset.has_cd_drive || asset.psu_type || 
+           asset.psu_wattage || asset.psu_cable_type || asset.os_install_date || asset.backup_type || 
+           asset.last_backup_date || asset.network_type || asset.static_ip_address || asset.vlan || 
+           asset.switch_name || asset.switch_port)
+}
+
+function hasFinancialInformation(asset: Asset): boolean {
+  return !!(asset.purchase_date || asset.purchase_cost || asset.warranty_expiry_date)
+}
+
+// Helper to format storage size with appropriate unit
+function formatStorageSize(sizeGB: number, unit?: string): string {
+  if (unit === 'TB' || sizeGB >= 1024) {
+    return `${(sizeGB / 1024).toFixed(sizeGB % 1024 === 0 ? 0 : 1)} TB`
+  }
+  return `${sizeGB} GB`
 }
 
 function getStatusIcon(statusName: string) {
@@ -266,14 +310,23 @@ function getActivityDescription(activity: ActivityLogEntry, asset?: Asset) {
     case 'asset_create':
       return 'Asset was created in the system'
     case 'asset_update':
-      return `Asset information was updated${details.fields ? ` (${details.fields.join(', ')})` : ''}`
+      if (details.changes && details.changes.length > 0) {
+        if (details.changes.length === 1) {
+          return `Updated: ${details.changes[0]}`
+        } else if (details.changes.length <= 3) {
+          return `Updated: ${details.changes.join(', ')}`
+        } else {
+          return `Updated ${details.changes.length} fields: ${details.changes.slice(0, 2).join(', ')}, and ${details.changes.length - 2} more`
+        }
+      }
+      return `Asset information was updated${details.fields_changed ? ` (${details.fields_changed.join(', ')})` : ''}`
     case 'asset_checkout':
-      // Try to get the assigned user's name from current asset data or details
-      if (asset?.assigned_to_user) {
-        return `Checked out to ${asset.assigned_to_user.first_name} ${asset.assigned_to_user.last_name}`
-      } else if (details.assigned_to_name) {
+      // Use the assigned_to_name from activity details (now contains proper user names)
+      if (details.assigned_to_name) {
         return `Checked out to ${details.assigned_to_name}`
-      } else if (details.assigned_to && details.assigned_to !== 'user/department') {
+      } else if (asset?.assigned_to_user) {
+        return `Checked out to ${asset.assigned_to_user.first_name} ${asset.assigned_to_user.last_name}`
+      } else if (details.assigned_to && !details.assigned_to.includes('user_') && !details.assigned_to.includes('department_')) {
         return `Checked out to ${details.assigned_to}`
       } else {
         return 'Asset was checked out'
@@ -281,9 +334,26 @@ function getActivityDescription(activity: ActivityLogEntry, asset?: Asset) {
     case 'asset_checkin':
       return 'Asset was checked back into inventory'
     case 'asset_transfer':
+      if (details.from && details.to) {
+        return `Transferred from ${details.from} to ${details.to}`
+      }
       return `Transferred from ${details.from || 'previous location'} to ${details.to || 'new location'}`
     case 'asset_verify':
       return 'Asset location and condition verified'
+    case 'asset_delete':
+      return 'Asset was deleted from the system'
+    case 'photo_upload':
+      return details.photo_type ? `${details.photo_type} photo uploaded` : 'Photo uploaded'
+    case 'document_upload':
+      return details.document_name ? `Document uploaded: ${details.document_name}` : 'Document uploaded'
+    case 'document_delete':
+      return details.document_name ? `Document deleted: ${details.document_name}` : 'Document deleted'
+    case 'comment_add':
+      return 'Comment added'
+    case 'comment_edit':
+      return 'Comment edited'
+    case 'comment_delete':
+      return 'Comment deleted'
     default:
       return formatActivityType(activity.action_type)
   }
@@ -324,6 +394,20 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   
   // Assignment actions dropdown
   const [showActionsDropdown, setShowActionsDropdown] = useState(false)
+  
+  // Confirmation modal state
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string
+    message: string
+    onConfirm: () => void
+    confirmText?: string
+    cancelText?: string
+  } | null>(null)
+
+  // Activity detail modal state
+  const [showActivityModal, setShowActivityModal] = useState(false)
+  const [selectedActivity, setSelectedActivity] = useState<ActivityLogEntry | null>(null)
 
   useEffect(() => {
     const getParams = async () => {
@@ -510,22 +594,31 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   }
 
   const handleDeleteComment = async (commentId: number) => {
-    if (!assetId || !confirm('Are you sure you want to delete this comment?')) return
+    if (!assetId) return
 
-    try {
-      const response = await fetch(`/api/assets/${assetId}/comments/${commentId}`, {
-        method: 'DELETE'
-      })
+    setConfirmAction({
+      title: 'Delete Comment',
+      message: 'Are you sure you want to delete this comment? This action cannot be undone.',
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/assets/${assetId}/comments/${commentId}`, {
+            method: 'DELETE'
+          })
 
-      if (response.ok) {
-        await fetchComments()
-      } else {
-        const error = await response.json()
-        alert(`Failed to delete comment: ${error.error}`)
+          if (response.ok) {
+            await fetchComments()
+          } else {
+            const error = await response.json()
+            alert(`Failed to delete comment: ${error.error}`)
+          }
+        } catch (error) {
+          alert('Failed to delete comment')
+        }
       }
-    } catch (error) {
-      alert('Failed to delete comment')
-    }
+    })
+    setShowConfirmModal(true)
   }
 
   const fetchDropdownData = async () => {
@@ -751,6 +844,155 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
             </Button>
           </div>
           {children}
+        </div>
+      </div>
+    )
+  }
+
+  // Confirmation Modal Component
+  const ConfirmationModal = () => {
+    if (!showConfirmModal || !confirmAction) return null
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-background border rounded-lg p-6 max-w-md w-full mx-4 shadow-lg">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-foreground mb-2">{confirmAction.title}</h3>
+            <p className="text-muted-foreground text-sm">{confirmAction.message}</p>
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowConfirmModal(false)
+                setConfirmAction(null)
+              }}
+            >
+              {confirmAction.cancelText || 'Cancel'}
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                confirmAction.onConfirm()
+                setShowConfirmModal(false)
+                setConfirmAction(null)
+              }}
+            >
+              {confirmAction.confirmText || 'Confirm'}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Activity Detail Modal Component
+  const ActivityDetailModal = () => {
+    if (!showActivityModal || !selectedActivity) return null
+
+    const details = selectedActivity.details || {}
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-background border rounded-lg p-6 max-w-2xl w-full mx-4 shadow-lg max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#888 #f5f5f5' }}>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-foreground">{formatActivityType(selectedActivity.action_type)}</h3>
+            <Button variant="ghost" size="sm" onClick={() => setShowActivityModal(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          <div className="space-y-4">
+            {/* Basic Info */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Performed By</label>
+                <p className="text-sm">{selectedActivity.user.first_name} {selectedActivity.user.last_name}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Date & Time</label>
+                <p className="text-sm">{new Date(selectedActivity.timestamp).toLocaleDateString()} at {new Date(selectedActivity.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+              </div>
+            </div>
+
+            {/* Asset Tag */}
+            {details.asset_tag && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Asset</label>
+                <p className="text-sm">{details.asset_tag}</p>
+              </div>
+            )}
+
+            {/* External Ticket ID */}
+            {selectedActivity.external_ticket_id && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Ticket ID</label>
+                <p className="text-sm font-mono">{selectedActivity.external_ticket_id}</p>
+              </div>
+            )}
+
+            {/* Changes Detail */}
+            {details.changes && details.changes.length > 0 && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Changes Made</label>
+                <div className="mt-2 space-y-1">
+                  {details.changes.map((change: string, index: number) => (
+                    <div key={index} className="text-sm bg-muted p-2 rounded text-muted-foreground">
+                      {change}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Checkout/Transfer specific details */}
+            {details.assigned_to_name && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Assigned To</label>
+                <p className="text-sm">{details.assigned_to_name}</p>
+              </div>
+            )}
+
+            {details.from && details.to && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">From</label>
+                  <p className="text-sm">{details.from}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">To</label>
+                  <p className="text-sm">{details.to}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Comment specific details */}
+            {details.comment_preview && (
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Comment Preview</label>
+                <p className="text-sm bg-muted p-2 rounded">{details.comment_preview}</p>
+              </div>
+            )}
+
+            {details.old_content && details.new_content && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Old Content</label>
+                  <p className="text-sm bg-muted p-2 rounded">{details.old_content}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">New Content</label>
+                  <p className="text-sm bg-muted p-2 rounded">{details.new_content}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Description */}
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Description</label>
+              <p className="text-sm">{getActivityDescription(selectedActivity, asset)}</p>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -1124,10 +1366,6 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Asset Tag</label>
-                  <p className="text-lg font-mono">{asset.asset_tag}</p>
-                </div>
                 {asset.device_name && (
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Device Name</label>
@@ -1135,22 +1373,26 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                   </div>
                 )}
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Serial Number</label>
-                  <p className="text-lg font-mono">{asset.serial_number || 'N/A'}</p>
+                  <label className="text-sm font-medium text-muted-foreground">Manufacturer</label>
+                  <p className="text-lg">{asset.model.manufacturer.name}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Model</label>
                   <p className="text-lg">{asset.model.name}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Manufacturer</label>
-                  <p className="text-lg">{asset.model.manufacturer.name}</p>
+                  <label className="text-sm font-medium text-muted-foreground">Category</label>
+                  <p className="text-lg">{asset.model.category.name}</p>
                 </div>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Category</label>
-                  <p className="text-lg">{asset.model.category.name}</p>
+                  <label className="text-sm font-medium text-muted-foreground">Asset Tag</label>
+                  <p className="text-lg font-mono">{asset.asset_tag}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Serial Number</label>
+                  <p className="text-lg font-mono">{asset.serial_number || 'N/A'}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Asset ID</label>
@@ -1161,137 +1403,173 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           </Card>
 
           {/* Asset Information */}
-          <Card className="p-6 relative group">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Package className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Asset Information</h2>
+          {hasAssetInformation(asset) && (
+            <Card className="p-6 relative group">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Package className="h-5 w-5 text-primary" />
+                  <h2 className="text-xl font-semibold">Asset Information</h2>
+                </div>
+                {/* Hover Edit Icon */}
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => router.push(`/assets/${assetId}/edit?section=information`)}
+                  title="Edit asset information"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
               </div>
-              {/* Hover Edit Icon */}
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => router.push(`/assets/${assetId}/edit?section=information`)}
-                title="Edit asset information"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Condition</label>
-                  <p className="text-lg">{asset.condition?.name || 'Not specified'}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  {asset.condition && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Condition</label>
+                      <p className="text-lg">{asset.condition.name}</p>
+                    </div>
+                  )}
+                  {asset.supplier && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Supplier</label>
+                      <p className="text-lg">{asset.supplier.name}</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Maintenance Schedule</label>
-                  <p className="text-lg">{asset.maintenance_schedule?.name || 'Not specified'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Supplier</label>
-                  <p className="text-lg">{asset.supplier?.name || 'Not specified'}</p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                {asset.warranty_expiry_date && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Warranty Status</label>
-                    <p className="text-lg">
-                      {new Date(asset.warranty_expiry_date) > new Date() ? (
-                        <span className="text-green-600">Active</span>
-                      ) : (
-                        <span className="text-red-600">Expired</span>
-                      )}
-                    </p>
-                  </div>
-                )}
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Verification Interval</label>
-                  <p className="text-lg">{asset.verification_interval_months ? `${asset.verification_interval_months} months` : 'Not set'}</p>
+                <div className="space-y-4">
+                  {asset.maintenance_schedule && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Maintenance Schedule</label>
+                      <p className="text-lg">{asset.maintenance_schedule.name}</p>
+                    </div>
+                  )}
+                  {asset.verification_interval_months && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Verification Interval</label>
+                      <p className="text-lg">{asset.verification_interval_months} months</p>
+                    </div>
+                  )}
+                  {asset.warranty_expiry_date && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Warranty Status</label>
+                      <p className="text-lg">
+                        {new Date(asset.warranty_expiry_date) > new Date() ? (
+                          <span className="text-green-600">Active</span>
+                        ) : (
+                          <span className="text-red-600">Expired</span>
+                        )}
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          )}
 
           {/* Hardware Specifications */}
-          <Card className="p-6 relative group">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <Cpu className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Hardware Specifications</h2>
+          {hasHardwareSpecifications(asset) && (
+            <Card className="p-6 relative group">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Cpu className="h-5 w-5 text-primary" />
+                  <h2 className="text-xl font-semibold">Hardware Specifications</h2>
+                </div>
+                {/* Hover Edit Icon */}
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={() => router.push(`/assets/${assetId}/edit?section=hardware`)}
+                  title="Edit hardware specifications"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
               </div>
-              {/* Hover Edit Icon */}
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => router.push(`/assets/${assetId}/edit?section=hardware`)}
-                title="Edit hardware specifications"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Processor (CPU)</label>
-                  <p className="text-lg">{asset.cpu || 'Not specified'}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  {asset.cpu && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Processor (CPU)</label>
+                      <p className="text-lg">{asset.cpu}</p>
+                    </div>
+                  )}
+                  {asset.ram_gb && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Memory (RAM)</label>
+                      <p className="text-lg">{asset.ram_gb} GB</p>
+                    </div>
+                  )}
+                  {asset.storage_type && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Storage Type</label>
+                      <div className="flex items-center gap-2">
+                        <HardDrive className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-lg">{asset.storage_type}</p>
+                      </div>
+                    </div>
+                  )}
+                  {asset.storage_size_gb && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Storage Size</label>
+                      <p className="text-lg">{formatStorageSize(asset.storage_size_gb, asset.storage_unit)}</p>
+                    </div>
+                  )}
+                  {asset.gpu && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Graphics (GPU)</label>
+                      <p className="text-lg">{asset.gpu}</p>
+                    </div>
+                  )}
+                  {/* Desktop-specific fields */}
+                  {asset.model.category.name.toLowerCase().includes('desktop') && asset.usb_ports_type && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">USB Ports</label>
+                      <p className="text-lg">{asset.usb_ports_type}</p>
+                    </div>
+                  )}
+                  {asset.model.category.name.toLowerCase().includes('desktop') && asset.display_ports_type && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Display Ports</label>
+                      <p className="text-lg">{asset.display_ports_type}</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Memory (RAM)</label>
-                  <p className="text-lg">{asset.ram_gb ? `${asset.ram_gb} GB` : 'Not specified'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Storage Type</label>
-                  <div className="flex items-center gap-2">
-                    <HardDrive className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-lg">{asset.storage_type || 'Not specified'}</p>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Storage Size</label>
-                  <p className="text-lg">{asset.storage_size_gb ? `${asset.storage_size_gb} GB` : 'Not specified'}</p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Screen Size</label>
-                  <div className="flex items-center gap-2">
-                    <Monitor className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-lg">{asset.screen_size || 'Not specified'}</p>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Graphics (GPU)</label>
-                  <p className="text-lg">{asset.gpu || 'Not specified'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Operating System</label>
-                  <p className="text-lg">{asset.operating_system || 'Not specified'}</p>
-                </div>
-                {/* Bitlocker Recovery Key for Laptops and Desktops */}
-                {(asset.model.category.name.toLowerCase().includes('laptop') || 
-                  asset.model.category.name.toLowerCase().includes('desktop')) && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">BitLocker Recovery Key</label>
-                    <div className="mt-2 space-y-2">
-                      <div className="font-mono text-xs bg-muted p-3 rounded break-all overflow-hidden">
-                        {asset.bitlocker_recovery_key ? (
-                          showBitlockerKey 
+                <div className="space-y-4">
+                  {/* Hide screen size for desktops */}
+                  {asset.screen_size && !asset.model.category.name.toLowerCase().includes('desktop') && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Screen Size</label>
+                      <div className="flex items-center gap-2">
+                        <Monitor className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-lg">{asset.screen_size}</p>
+                      </div>
+                    </div>
+                  )}
+                  {asset.operating_system && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Operating System</label>
+                      <p className="text-lg">{asset.operating_system}</p>
+                    </div>
+                  )}
+                  {/* Bitlocker Recovery Key for Laptops and Desktops */}
+                  {(asset.model.category.name.toLowerCase().includes('laptop') || 
+                    asset.model.category.name.toLowerCase().includes('desktop')) && asset.bitlocker_recovery_key && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">BitLocker Recovery Key</label>
+                      <div className="mt-2 flex gap-2 items-center">
+                        <div className="flex-1 font-mono text-xs bg-muted p-3 rounded break-all overflow-hidden">
+                          {showBitlockerKey 
                             ? asset.bitlocker_recovery_key 
                             : '••••••-••••••-••••••-••••••-••••••-••••••-••••••-••••••'
-                        ) : (
-                          'Not available'
-                        )}
-                      </div>
-                      {asset.bitlocker_recovery_key && (
-                        <div className="flex gap-1">
+                          }
+                        </div>
+                        <div className="flex gap-1 flex-shrink-0">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setShowBitlockerKey(!showBitlockerKey)}
                             title={showBitlockerKey ? 'Hide recovery key' : 'Show recovery key'}
+                            className="cursor-pointer"
                           >
                             {showBitlockerKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
@@ -1301,17 +1579,116 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                             onClick={copyBitlockerKey}
                             title="Copy recovery key"
                             disabled={copiedBitlocker}
+                            className="cursor-pointer"
                           >
                             {copiedBitlocker ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
                           </Button>
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                  {/* Desktop-specific fields */}
+                  {asset.model.category.name.toLowerCase().includes('desktop') && (
+                    <>
+                      {asset.has_builtin_wifi !== undefined && (
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Built-in WiFi</label>
+                          <p className="text-lg">{asset.has_builtin_wifi ? 'Yes' : 'No'}</p>
+                        </div>
+                      )}
+                      {asset.has_cd_drive !== undefined && (
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">CD/DVD Drive</label>
+                          <p className="text-lg">{asset.has_cd_drive ? 'Yes' : 'No'}</p>
+                        </div>
+                      )}
+                      {asset.psu_type && (
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">PSU Type</label>
+                          <p className="text-lg">{asset.psu_type}</p>
+                        </div>
+                      )}
+                      {asset.psu_wattage && (
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">PSU Wattage</label>
+                          <p className="text-lg">{asset.psu_wattage}W</p>
+                        </div>
+                      )}
+                      {asset.psu_cable_type && (
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Power Cable Type</label>
+                          <p className="text-lg">{asset.psu_cable_type}</p>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  
+                  {/* System and Network tracking for desktops */}
+                  {asset.model.category.name.toLowerCase().includes('desktop') && (
+                    asset.os_install_date || asset.backup_type || asset.last_backup_date || 
+                    asset.network_type || asset.static_ip_address || asset.vlan || 
+                    asset.switch_name || asset.switch_port
+                  ) && (
+                    <>
+                      <div className="md:col-span-2 border-t pt-4 mt-4">
+                        <h4 className="text-base font-semibold mb-4 text-muted-foreground">System & Network Information</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {asset.os_install_date && (
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">OS Install Date</label>
+                              <p className="text-lg">{new Date(asset.os_install_date).toLocaleDateString()}</p>
+                            </div>
+                          )}
+                          {asset.backup_type && (
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">Backup Type</label>
+                              <p className="text-lg">{asset.backup_type}</p>
+                            </div>
+                          )}
+                          {asset.last_backup_date && (
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">Last Backup Date</label>
+                              <p className="text-lg">{new Date(asset.last_backup_date).toLocaleDateString()}</p>
+                            </div>
+                          )}
+                          {asset.network_type && (
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">Network Configuration</label>
+                              <p className="text-lg">{asset.network_type}</p>
+                            </div>
+                          )}
+                          {asset.static_ip_address && (
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">Static IP Address</label>
+                              <p className="text-lg font-mono">{asset.static_ip_address}</p>
+                            </div>
+                          )}
+                          {asset.vlan && (
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">VLAN</label>
+                              <p className="text-lg">{asset.vlan}</p>
+                            </div>
+                          )}
+                          {asset.switch_name && (
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">Switch Name</label>
+                              <p className="text-lg font-mono">{asset.switch_name}</p>
+                            </div>
+                          )}
+                          {asset.switch_port && (
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">Switch Port</label>
+                              <p className="text-lg font-mono">{asset.switch_port}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+          )}
 
           {/* Attached Documents */}
           <Card className="p-6">
@@ -1333,7 +1710,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                   }}
                 />
                 <Button variant="outline" size="sm" asChild>
-                  <span>
+                  <span className="cursor-pointer">
                     <Upload className="h-4 w-4 mr-2" />
                     Upload Document
                   </span>
@@ -1364,6 +1741,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                         e.stopPropagation()
                         alert('Document download functionality will be implemented in the next phase.')
                       }}
+                      className="cursor-pointer"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -1373,11 +1751,18 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       title="Delete document"
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
-                          alert('Document deletion functionality will be implemented in the next phase.')
-                        }
+                        setConfirmAction({
+                          title: 'Delete Document',
+                          message: 'Are you sure you want to delete "Purchase Receipt"? This action cannot be undone.',
+                          confirmText: 'Delete',
+                          cancelText: 'Cancel',
+                          onConfirm: () => {
+                            alert('Document deletion functionality will be implemented in the next phase.')
+                          }
+                        })
+                        setShowConfirmModal(true)
                       }}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -1406,6 +1791,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                         e.stopPropagation()
                         alert('Document download functionality will be implemented in the next phase.')
                       }}
+                      className="cursor-pointer"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -1415,11 +1801,18 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       title="Delete document"
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
-                          alert('Document deletion functionality will be implemented in the next phase.')
-                        }
+                        setConfirmAction({
+                          title: 'Delete Document',
+                          message: 'Are you sure you want to delete "User Manual"? This action cannot be undone.',
+                          confirmText: 'Delete',
+                          cancelText: 'Cancel',
+                          onConfirm: () => {
+                            alert('Document deletion functionality will be implemented in the next phase.')
+                          }
+                        })
+                        setShowConfirmModal(true)
                       }}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -1448,6 +1841,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                         e.stopPropagation()
                         alert('Document download functionality will be implemented in the next phase.')
                       }}
+                      className="cursor-pointer"
                     >
                       <Download className="h-4 w-4" />
                     </Button>
@@ -1457,11 +1851,18 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                       title="Delete document"
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
-                          alert('Document deletion functionality will be implemented in the next phase.')
-                        }
+                        setConfirmAction({
+                          title: 'Delete Document',
+                          message: 'Are you sure you want to delete "Warranty Information"? This action cannot be undone.',
+                          confirmText: 'Delete',
+                          cancelText: 'Cancel',
+                          onConfirm: () => {
+                            alert('Document deletion functionality will be implemented in the next phase.')
+                          }
+                        })
+                        setShowConfirmModal(true)
                       }}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -1477,11 +1878,23 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           </Card>
 
           {/* Financial Information */}
-          {(asset.purchase_date || asset.purchase_cost) && (
-            <Card className="p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <Calendar className="h-5 w-5 text-primary" />
-                <h2 className="text-xl font-semibold">Financial Information</h2>
+          {hasFinancialInformation(asset) && (
+            <Card className="p-6 relative group">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  <h2 className="text-xl font-semibold">Financial Information</h2>
+                </div>
+                {/* Hover Edit Icon */}
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                  onClick={() => router.push(`/assets/${assetId}/edit?section=financial`)}
+                  title="Edit financial information"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {asset.purchase_date && (
@@ -1631,13 +2044,13 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                                    setEditingComment(comment.id)
                                    setEditingContent(comment.content)
                                  }}
-                                 className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-colors"
+                                 className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-colors cursor-pointer"
                                >
                                  Edit
                                </button>
                                <button
                                  onClick={() => handleDeleteComment(comment.id)}
-                                 className="text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors"
+                                 className="text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors cursor-pointer"
                                >
                                  Delete
                                </button>
@@ -1658,93 +2071,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
             </div>
           </Card>
 
-          {/* Timeline */}
-          <Card className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <Calendar className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-semibold">Timeline</h2>
-            </div>
-            <div className="space-y-4">
-              {loadingActivityLogs ? (
-                <div className="flex items-center gap-3 p-3">
-                  <div className="w-4 h-4 rounded-full bg-muted animate-pulse"></div>
-                  <div className="space-y-2 flex-1">
-                    <div className="h-4 bg-muted rounded animate-pulse"></div>
-                    <div className="h-3 bg-muted rounded w-3/4 animate-pulse"></div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {/* Activity logs from database */}
-                  {activityLogs.map((activity) => (
-                    <div key={activity.id} className={`flex items-start gap-4 p-3 border-l-2 ${getActivityColor(activity.action_type)}`}>
-                      <div className="mt-1">
-                        {getActivityIcon(activity.action_type)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <p className="font-medium">{formatActivityType(activity.action_type)}</p>
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {getActivityDescription(activity, asset)}
-                            </p>
-                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                              <span>{activity.user.first_name} {activity.user.last_name}</span>
-                              <span>•</span>
-                              <span>{new Date(activity.timestamp).toLocaleDateString()} at {new Date(activity.timestamp).toLocaleTimeString()}</span>
-                              {activity.external_ticket_id && (
-                                <>
-                                  <span>•</span>
-                                  <span className="font-mono">#{activity.external_ticket_id}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* Fallback to basic timeline if no activity logs */}
-                  {activityLogs.length === 0 && (
-                    <>
-                      <div className="flex items-center gap-4 p-3 border-l-2 border-primary/20">
-                        <div className="w-2 h-2 rounded-full bg-primary"></div>
-                        <div>
-                          <p className="font-medium">Asset Created</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(asset.created_at).toLocaleDateString()} at {new Date(asset.created_at).toLocaleTimeString()}
-                          </p>
-                        </div>
-                      </div>
-                      {asset.updated_at && asset.updated_at !== asset.created_at && (
-                        <div className="flex items-center gap-4 p-3 border-l-2 border-muted">
-                          <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>
-                          <div>
-                            <p className="font-medium">Last Updated</p>
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(asset.updated_at).toLocaleDateString()} at {new Date(asset.updated_at).toLocaleTimeString()}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      {asset.last_verified_date && (
-                        <div className="flex items-center gap-4 p-3 border-l-2 border-green-200">
-                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          <div>
-                            <p className="font-medium">Last Verified</p>
-                            <p className="text-sm text-muted-foreground">
-                              {new Date(asset.last_verified_date).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          </Card>
+
         </div>
 
         {/* Sidebar */}
@@ -1761,7 +2088,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                 <Button 
                   size="sm" 
                   variant="ghost" 
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   onClick={() => router.push(`/assets/${assetId}/edit?section=assignment`)}
                   title="Edit assignment and location"
                 >
@@ -1773,6 +2100,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                   <Button 
                     size="sm"
                     variant="default" 
+                    className="cursor-pointer"
                     onClick={async () => {
                       await fetchDropdownData()
                       setShowCheckOutModal(true)
@@ -1786,6 +2114,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                     <Button 
                       size="sm"
                       variant="outline" 
+                      className="cursor-pointer"
                       onClick={() => setShowActionsDropdown(!showActionsDropdown)}
                     >
                       <MoreHorizontal className="h-4 w-4" />
@@ -1793,7 +2122,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                     {showActionsDropdown && (
                       <div className="absolute right-0 top-8 z-50 bg-background border rounded-md shadow-lg py-1 w-32">
                         <button
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted cursor-pointer"
                           onClick={() => {
                             handleAction('Check In')
                             setShowActionsDropdown(false)
@@ -1802,7 +2131,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                           Check In
                         </button>
                         <button
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted cursor-pointer"
                           onClick={() => {
                             handleAction('Transfer')
                             setShowActionsDropdown(false)
@@ -1852,14 +2181,22 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                 <label className="text-sm font-medium text-muted-foreground">Department</label>
                 <div className="flex items-center gap-2 mt-2">
                   <Building className="h-4 w-4 text-muted-foreground" />
-                  <p>{asset.department?.name || 'No department assigned'}</p>
+                  <p>
+                    {asset.assigned_to_user?.department?.name || 
+                     asset.department?.name || 
+                     'No department assigned'}
+                  </p>
                 </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Location</label>
                 <div className="flex items-center gap-2 mt-2">
                   <MapPin className="h-4 w-4 text-muted-foreground" />
-                  <p>{asset.location?.name || 'No location assigned'}</p>
+                  <p>
+                    {asset.assigned_to_user?.location?.name || 
+                     asset.location?.name || 
+                     'No location assigned'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -1874,13 +2211,13 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                 <Button 
                   size="sm" 
                   variant="ghost" 
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   onClick={() => router.push(`/assets/${assetId}/edit?section=photo`)}
                   title="Edit photo options"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
-                <label>
+                <label className="cursor-pointer">
                   <input
                     type="file"
                     accept="image/*"
@@ -1893,7 +2230,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                     }}
                   />
                   <Button size="sm" variant="outline" asChild>
-                    <span>
+                    <span className="cursor-pointer">
                       <Camera className="h-4 w-4 mr-2" />
                       Upload Photo
                     </span>
@@ -1969,13 +2306,18 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                 <Button 
                   size="sm" 
                   variant="ghost" 
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   onClick={() => router.push(`/assets/${assetId}/edit?section=relationships`)}
                   title="Edit asset relationships"
                 >
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => handleAction('Link Asset')}>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="cursor-pointer" 
+                  onClick={() => router.push(`/assets/${assetId}/edit?section=linked-assets`)}
+                >
                   <Package className="h-4 w-4 mr-2" />
                   Link Asset
                 </Button>
@@ -2111,7 +2453,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               <Button 
                 size="sm" 
                 variant="ghost" 
-                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                className="opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                 onClick={() => router.push(`/assets/${assetId}/edit?section=links`)}
                 title="Edit related links"
               >
@@ -2130,7 +2472,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                   <Button 
                     key={defaultLink.type}
                     variant="ghost" 
-                    className="w-full justify-start h-auto p-3" 
+                    className="w-full justify-start h-auto p-3 cursor-pointer" 
                     onClick={() => handleRelatedLink(defaultLink.type)}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
@@ -2175,11 +2517,111 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               ))}
             </div>
           </Card>
+
+          {/* Timeline - Moved to bottom */}
+          <Card className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <Activity className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Timeline</h2>
+            </div>
+            <div className="space-y-3 max-h-80 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#888 #f5f5f5' }}>
+              {loadingActivityLogs ? (
+                <div className="flex items-center gap-3 p-3">
+                  <div className="w-3 h-3 rounded-full bg-muted animate-pulse"></div>
+                  <div className="space-y-2 flex-1">
+                    <div className="h-3 bg-muted rounded animate-pulse"></div>
+                    <div className="h-2 bg-muted rounded w-3/4 animate-pulse"></div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Activity logs from database */}
+                  {activityLogs.map((activity) => (
+                    <div 
+                      key={activity.id} 
+                      className={`flex items-start gap-3 p-2 border-l-2 ${getActivityColor(activity.action_type)} hover:bg-muted/30 rounded-r cursor-pointer transition-colors`}
+                      onClick={() => {
+                        setSelectedActivity(activity)
+                        setShowActivityModal(true)
+                      }}
+                      title="Click to view details"
+                    >
+                      <div className="mt-0.5 flex-shrink-0" style={{ transform: 'scale(0.8)' }}>
+                        {getActivityIcon(activity.action_type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm">{formatActivityType(activity.action_type)}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {getActivityDescription(activity, asset)}
+                        </p>
+                        <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                          <span className="cursor-pointer hover:text-primary">
+                            {activity.user.first_name} {activity.user.last_name}
+                          </span>
+                          <span>•</span>
+                          <span>{new Date(activity.timestamp).toLocaleDateString()}</span>
+                          {activity.external_ticket_id && (
+                            <>
+                              <span>•</span>
+                              <span className="font-mono">#{activity.external_ticket_id}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* Fallback to basic timeline if no activity logs */}
+                  {activityLogs.length === 0 && (
+                    <>
+                      <div className="flex items-start gap-3 p-2 border-l-2 border-primary/20 hover:bg-muted/30 rounded-r cursor-pointer transition-colors">
+                        <div className="w-2 h-2 rounded-full bg-primary mt-1.5"></div>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">Asset Created</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(asset.created_at).toLocaleDateString()} at {new Date(asset.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </p>
+                        </div>
+                      </div>
+                      {asset.updated_at && asset.updated_at !== asset.created_at && (
+                        <div className="flex items-start gap-3 p-2 border-l-2 border-muted hover:bg-muted/30 rounded-r cursor-pointer transition-colors">
+                          <div className="w-2 h-2 rounded-full bg-muted-foreground mt-1.5"></div>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">Last Updated</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(asset.updated_at).toLocaleDateString()} at {new Date(asset.updated_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {asset.last_verified_date && (
+                        <div className="flex items-start gap-3 p-2 border-l-2 border-green-200 hover:bg-muted/30 rounded-r cursor-pointer transition-colors">
+                          <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5"></div>
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">Last Verified</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(asset.last_verified_date).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </Card>
         </div>
       </div>
 
       {/* Photo Modal */}
       <PhotoModal />
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal />
+
+      {/* Activity Detail Modal */}
+      <ActivityDetailModal />
 
       {/* Checkout/Transfer Modals */}
       <CheckOutModal />
