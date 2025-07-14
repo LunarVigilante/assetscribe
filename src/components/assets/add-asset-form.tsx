@@ -2,15 +2,12 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { getCategoryStockPhotoUrl, createImageFallbackHandler } from '@/lib/utils'
 import { 
   ArrowLeft,
   Package,
-  Upload,
   CheckCircle,
   X
 } from 'lucide-react'
@@ -18,39 +15,9 @@ import {
 export function AddAssetForm() {
   const router = useRouter()
   const [currentPage, setCurrentPage] = useState(1)
-  const totalPages = 7
+  const totalPages = 4
 
-  // Photo handling state  
-  const [photoOption, setPhotoOption] = useState<'model' | 'unique' | 'stock'>('stock')
-  const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null)
-
-  // Document handling state
-  const [selectedDocuments, setSelectedDocuments] = useState<File[]>([])
-  const [documentPreviews, setDocumentPreviews] = useState<{[key: string]: string}>({})
-
-  // Auto-fill note state
-  const [modelNameAutoFillNote, setModelNameAutoFillNote] = useState('')
-
-  // Vendor management state
-  const [customVendor, setCustomVendor] = useState('')
-  const [showCustomVendor, setShowCustomVendor] = useState(false)
-  const [vendors, setVendors] = useState<{ id: string; name: string }[]>([])
-
-  // Manufacturer management state
-  const [customManufacturer, setCustomManufacturer] = useState('')
-  const [showCustomManufacturer, setShowCustomManufacturer] = useState(false)
-  const [manufacturers, setManufacturers] = useState<{ id: string; name: string }[]>([])
-
-  // Category management state
-  const [customCategory, setCustomCategory] = useState('')
-  const [showCustomCategory, setShowCustomCategory] = useState(false)
-  const [dbCategories, setDbCategories] = useState<{ id: string; name: string }[]>([])
-
-  // Model suggestions state
-  const [modelSuggestions, setModelSuggestions] = useState<string[]>([])
-  const [showModelSuggestions, setShowModelSuggestions] = useState(false)
-
-  // Form input state
+  // Basic form state
   const [assetTag, setAssetTag] = useState('')
   const [deviceName, setDeviceName] = useState('')
   const [serialNumber, setSerialNumber] = useState('')
@@ -58,44 +25,139 @@ export function AddAssetForm() {
   const [modelNumber, setModelNumber] = useState('')
   const [selectedManufacturer, setSelectedManufacturer] = useState('')
   const [selectedFormCategory, setSelectedFormCategory] = useState('')
-  const [selectedVendor, setSelectedVendor] = useState('')
   const [notes, setNotes] = useState('')
-  const [assetValue, setAssetValue] = useState('')
   const [externalTicketId, setExternalTicketId] = useState('')
 
-  // Success banner state
+  // Purchase Information state
+  const [purchaseDate, setPurchaseDate] = useState('')
+  const [purchaseCost, setPurchaseCost] = useState('')
+  const [vendor, setVendor] = useState('')
+  const [invoiceNumber, setInvoiceNumber] = useState('')
+  const [warrantyStartDate, setWarrantyStartDate] = useState('')
+  const [warrantyEndDate, setWarrantyEndDate] = useState('')
+  const [warrantyProvider, setWarrantyProvider] = useState('')
+  const [warrantyType, setWarrantyType] = useState('')
+  const [supportContactInfo, setSupportContactInfo] = useState('')
+
+  // Status & Assignment state
+  const [assetStatus, setAssetStatus] = useState('')
+  const [deploymentStatus, setDeploymentStatus] = useState('')
+  const [assignedUser, setAssignedUser] = useState('')
+  const [assignedUserEmail, setAssignedUserEmail] = useState('')
+  const [assignedLocation, setAssignedLocation] = useState('')
+  const [department, setDepartment] = useState('')
+  const [assignedDate, setAssignedDate] = useState('')
+  const [maintenanceSchedule, setMaintenanceSchedule] = useState('')
+  const [isFixedAsset, setIsFixedAsset] = useState(false)
+  const [fixedAssetId, setFixedAssetId] = useState('')
+
+  // Document upload state
+  const [uploadedDocuments, setUploadedDocuments] = useState<File[]>([])
+
+  // Desktop/Laptop Hardware Specifications state
+  const [cpu, setCpu] = useState('')
+  const [ramGb, setRamGb] = useState('')
+  const [storageType, setStorageType] = useState('')
+  const [storageSizeGb, setStorageSizeGb] = useState('')
+  const [storageUnit, setStorageUnit] = useState('GB')
+  const [screenSize, setScreenSize] = useState('')
+  const [gpu, setGpu] = useState('')
+  const [operatingSystem, setOperatingSystem] = useState('')
+  const [bitlockerRecoveryKey, setBitlockerRecoveryKey] = useState('')
+  const [bitlockerEnabled, setBitlockerEnabled] = useState(false)
+  
+  // Desktop-specific state
+  const [usbPortsType, setUsbPortsType] = useState('')
+  const [displayPortsType, setDisplayPortsType] = useState('')
+  const [hasBuiltinWifi, setHasBuiltinWifi] = useState(false)
+  const [hasCdDrive, setHasCdDrive] = useState(false)
+  const [psuType, setPsuType] = useState('')
+  const [psuWattage, setPsuWattage] = useState('')
+
+  // System and Network tracking state
+  const [networkType, setNetworkType] = useState('')
+  const [staticIpAddress, setStaticIpAddress] = useState('')
+  const [vlan, setVlan] = useState('')
+  const [switchName, setSwitchName] = useState('')
+  const [switchPort, setSwitchPort] = useState('')
+  const [macAddress, setMacAddress] = useState('')
+
+  // Phone/Tablet specific state
+  const [phoneExpandableStorageType, setPhoneExpandableStorageType] = useState('')
+  const [tabletExpandableStorageType, setTabletExpandableStorageType] = useState('')
+  const [isCarrierLocked, setIsCarrierLocked] = useState(false)
+
+  // MDM Management state
+  const [appleBusinessManager, setAppleBusinessManager] = useState(false)
+  const [intuneManagement, setIntuneManagement] = useState(false)
+  const [mosyleManagement, setMosyleManagement] = useState(false)
+  const [deviceConfigurationPolicies, setDeviceConfigurationPolicies] = useState('')
+  const [groupMembership, setGroupMembership] = useState('')
+
+  // Dropdown data
+  const [manufacturers, setManufacturers] = useState<{ id: string; name: string }[]>([])
+  const [dbCategories, setDbCategories] = useState<{ id: string; name: string }[]>([])
+  const [vendors, setVendors] = useState<{ id: string; name: string }[]>([])
+  const [users, setUsers] = useState<{ id: string; name: string; email: string; department?: string; location?: string }[]>([])
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([])
+  const [locations, setLocations] = useState<{ id: string; name: string }[]>([])
   const [showSuccessBanner, setShowSuccessBanner] = useState(false)
   const [successMessage, setSuccessMessage] = useState('')
 
-  // Fetch dropdown data from database on component mount
+  // Category detection functions
+  const isPhoneCategory = () => {
+    const categoryName = dbCategories.find(cat => cat.id === selectedFormCategory)?.name?.toLowerCase()
+    return categoryName?.includes('phone') || categoryName?.includes('smartphone') || categoryName?.includes('mobile')
+  }
+
+  const isTabletCategory = () => {
+    const categoryName = dbCategories.find(cat => cat.id === selectedFormCategory)?.name?.toLowerCase()
+    return categoryName?.includes('tablet') || categoryName?.includes('ipad')
+  }
+
+  const isDesktopCategory = () => {
+    const categoryName = dbCategories.find(cat => cat.id === selectedFormCategory)?.name?.toLowerCase()
+    return categoryName?.includes('desktop') || categoryName?.includes('workstation')
+  }
+
+  const isLaptopCategory = () => {
+    const categoryName = dbCategories.find(cat => cat.id === selectedFormCategory)?.name?.toLowerCase()
+    return categoryName?.includes('laptop') || categoryName?.includes('notebook')
+  }
+
+  // Fetch dropdown data
   useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        // Fetch main dropdown data
+        const mainResponse = await fetch('/api/settings/dropdown-lists')
+        if (mainResponse.ok) {
+          const data = await mainResponse.json()
+          setManufacturers(data.manufacturers?.map((m: any) => ({ id: m.id.toString(), name: m.name })) || [])
+          setDbCategories(data.categories?.map((c: any) => ({ id: c.id.toString(), name: c.name })) || [])
+          setVendors(data.suppliers?.map((v: any) => ({ id: v.id.toString(), name: v.name })) || [])
+          setDepartments(data.departments?.map((d: any) => ({ id: d.id.toString(), name: d.name })) || [])
+          setLocations(data.locations?.map((l: any) => ({ id: l.id.toString(), name: l.name })) || [])
+        }
+
+        // Fetch users separately
+        const usersResponse = await fetch('/api/users')
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json()
+          setUsers(usersData.map((u: any) => ({ 
+            id: u.id.toString(), 
+            name: `${u.first_name} ${u.last_name}`, 
+            email: u.email,
+            department: u.department?.name,
+            location: u.location?.name
+          })) || [])
+        }
+      } catch (error) {
+        console.error('Error fetching dropdown data:', error)
+      }
+    }
     fetchDropdownData()
   }, [])
-
-  const fetchDropdownData = async () => {
-    try {
-      const response = await fetch('/api/settings/dropdown-lists')
-      if (response.ok) {
-        const data = await response.json()
-        setVendors(data.suppliers.map((supplier: any) => ({
-          id: supplier.id.toString(),
-          name: supplier.name
-        })))
-        setManufacturers(data.manufacturers.map((manufacturer: any) => ({
-          id: manufacturer.id.toString(),
-          name: manufacturer.name
-        })))
-        setDbCategories(data.categories.map((category: any) => ({
-          id: category.id.toString(),
-          name: category.name
-        })))
-      } else {
-        console.error('Failed to fetch dropdown data')
-      }
-    } catch (error) {
-      console.error('Error fetching dropdown data:', error)
-    }
-  }
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
@@ -108,346 +170,115 @@ export function AddAssetForm() {
       setCurrentPage(currentPage - 1)
     }
   }
-  
+
   const handleStepClick = (step: number) => {
     setCurrentPage(step)
   }
 
   const handleCreateAsset = async () => {
     try {
-      // Basic validation
-      if (!deviceName.trim()) {
-        alert('Device Name is required')
-        return
-      }
-      if (!assetTag.trim()) {
-        alert('Asset Tag is required')
-        return
-      }
-      if (!modelNumber.trim()) {
-        alert('Model Number is required')
+      if (!deviceName.trim() || !assetTag.trim() || !modelNumber.trim()) {
+        alert('Please fill in all required fields')
         return
       }
 
-      // Prepare asset data for API
       const assetData = {
         asset_tag: assetTag.trim(),
-        device_name: deviceName.trim() || null,
+        device_name: deviceName.trim(),
         serial_number: serialNumber.trim() || null,
         model_name: modelName.trim() || null,
         model_number: modelNumber.trim(),
         manufacturer_id: selectedManufacturer || null,
-        category_id: selectedFormCategory || null, 
-        vendor_id: selectedVendor || null,
+        category_id: selectedFormCategory || null,
         notes: notes.trim() || null,
-        asset_value: assetValue ? parseFloat(assetValue) : null,
-        external_ticket_id: externalTicketId.trim() || null
+        external_ticket_id: externalTicketId.trim() || null,
+        
+        // Purchase Information
+        purchase_date: purchaseDate || null,
+        purchase_cost: purchaseCost ? parseFloat(purchaseCost) : null,
+        supplier_id: vendor || null,
+        invoice_number: invoiceNumber.trim() || null,
+        warranty_start_date: warrantyStartDate || null,
+        warranty_end_date: warrantyEndDate || null,
+        warranty_provider: warrantyProvider.trim() || null,
+        warranty_type: warrantyType || null,
+        support_contact_info: supportContactInfo.trim() || null,
+        
+        // Status & Assignment
+        asset_status: assetStatus || null,
+        deployment_status: deploymentStatus || null,
+        assigned_user: assignedUser.trim() || null,
+        assigned_user_email: assignedUserEmail.trim() || null,
+        assigned_location: assignedLocation.trim() || null,
+        department: department.trim() || null,
+        assigned_date: assignedDate || null,
+        maintenance_schedule: maintenanceSchedule.trim() || null,
+        is_fixed_asset: isFixedAsset,
+        fixed_asset_id: fixedAssetId.trim() || null,
+        
+        // Hardware Specifications
+        cpu: cpu.trim() || null,
+        ram_gb: ramGb ? parseInt(ramGb) : null,
+        storage_type: storageType || null,
+        storage_size_gb: storageSizeGb ? (storageUnit === 'TB' ? parseInt(storageSizeGb) * 1024 : parseInt(storageSizeGb)) : null,
+        storage_unit: storageUnit || 'GB',
+        screen_size: screenSize.trim() || null,
+        gpu: gpu.trim() || null,
+        operating_system: operatingSystem.trim() || null,
+        bitlocker_recovery_key: bitlockerRecoveryKey.trim() || null,
+        bitlocker_enabled: bitlockerEnabled,
+        
+        // Desktop-specific fields
+        usb_ports_type: usbPortsType.trim() || null,
+        display_ports_type: displayPortsType.trim() || null,
+        has_builtin_wifi: hasBuiltinWifi,
+        has_cd_drive: hasCdDrive,
+        psu_type: psuType || null,
+        psu_wattage: psuWattage ? parseInt(psuWattage) : null,
+        
+        // System and Network tracking
+        network_type: networkType || null,
+        static_ip_address: staticIpAddress.trim() || null,
+        vlan: vlan.trim() || null,
+        switch_name: switchName.trim() || null,
+        switch_port: switchPort.trim() || null,
+        mac_address: macAddress.trim() || null,
+        
+        // Phone/Tablet specific fields
+        phone_expandable_storage_type: phoneExpandableStorageType || null,
+        tablet_expandable_storage_type: tabletExpandableStorageType || null,
+        is_carrier_locked: isCarrierLocked,
+        
+        // MDM Management
+        apple_business_manager: appleBusinessManager,
+        intune_management: intuneManagement,
+        mosyle_management: mosyleManagement,
+        device_configuration_policies: deviceConfigurationPolicies.trim() || null,
+        group_membership: groupMembership.trim() || null
       }
 
-      console.log('Creating asset with data:', assetData)
-      
-      // Call the API to create the asset
       const response = await fetch('/api/assets/create-simple', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(assetData)
       })
 
       const result = await response.json()
 
       if (response.ok && result.success) {
-        const createdAsset = result.data
-        
-        // Show success banner
-        setSuccessMessage(`Asset ${createdAsset.asset_tag} created successfully! Asset ID: ${createdAsset.id}, Model: ${createdAsset.model.name}, Status: ${createdAsset.status.name}`)
+        setSuccessMessage(`Asset ${result.data.asset_tag} created successfully!`)
         setShowSuccessBanner(true)
-        
-        // Hide banner after 3 seconds then redirect
         setTimeout(() => {
           setShowSuccessBanner(false)
-          // Navigate to the newly created asset's details page
-          router.push(`/assets/${createdAsset.id}`)
+          router.push(`/assets/${result.data.id}`)
         }, 3000)
-        
       } else {
         throw new Error(result.error || 'Failed to create asset')
       }
-      
     } catch (error: any) {
       console.error('Error creating asset:', error)
       alert(`Failed to create asset: ${error.message}`)
     }
-  }
-
-  const handleManufacturerChange = (value: string) => {
-    if (value === 'custom') {
-      setShowCustomManufacturer(true)
-      setCustomManufacturer('')
-    } else {
-      setShowCustomManufacturer(false)
-      setSelectedManufacturer(value)
-    }
-  }
-
-  const handleCategoryChange = (value: string) => {
-    if (value === 'custom') {
-      setShowCustomCategory(true)
-    } else {
-      setShowCustomCategory(false)
-      setCustomCategory('')
-      setSelectedFormCategory(value)
-    }
-  }
-
-  const handleVendorChange = (value: string) => {
-    if (value === 'custom') {
-      setShowCustomVendor(true)
-    } else {
-      setShowCustomVendor(false)
-      setCustomVendor('')
-      setSelectedVendor(value)
-    }
-  }
-
-  const handleAddVendor = async () => {
-    if (customVendor.trim()) {
-      try {
-        const response = await fetch('/api/settings/dropdown-lists', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            listType: 'suppliers',
-            name: customVendor.trim()
-          })
-        })
-
-        if (response.ok) {
-          const newVendor = await response.json()
-          const vendorForList = {
-            id: newVendor.id.toString(),
-            name: newVendor.name
-          }
-          setVendors([...vendors, vendorForList])
-          
-          // Auto-select the newly created vendor
-          setSelectedVendor(vendorForList.id)
-          
-          setCustomVendor('')
-          setShowCustomVendor(false)
-          console.log('New vendor added:', vendorForList)
-        } else {
-          const errorData = await response.json()
-          alert(errorData.error || 'Failed to add vendor')
-        }
-      } catch (error) {
-        console.error('Error adding vendor:', error)
-        alert('Error adding vendor. Please try again.')
-      }
-    }
-  }
-
-  const handleAddManufacturer = async () => {
-    if (customManufacturer.trim()) {
-      try {
-        const response = await fetch('/api/settings/dropdown-lists', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            listType: 'manufacturers',
-            name: customManufacturer.trim()
-          })
-        })
-
-        if (response.ok) {
-          const newManufacturer = await response.json()
-          const manufacturerForList = {
-            id: newManufacturer.id.toString(),
-            name: newManufacturer.name
-          }
-          setManufacturers([...manufacturers, manufacturerForList])
-          
-          // Auto-select the newly created manufacturer
-          setSelectedManufacturer(manufacturerForList.id)
-          
-          setCustomManufacturer('')
-          setShowCustomManufacturer(false)
-          console.log('New manufacturer added:', manufacturerForList)
-        } else {
-          const errorData = await response.json()
-          alert(errorData.error || 'Failed to add manufacturer')
-        }
-      } catch (error) {
-        console.error('Error adding manufacturer:', error)
-        alert('Error adding manufacturer. Please try again.')
-      }
-    }
-  }
-
-  const handleAddCategory = async () => {
-    if (customCategory.trim()) {
-      try {
-        const response = await fetch('/api/settings/dropdown-lists', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            listType: 'categories',
-            name: customCategory.trim()
-          })
-        })
-
-        if (response.ok) {
-          const newCategory = await response.json()
-          const categoryForList = {
-            id: newCategory.id.toString(),
-            name: newCategory.name
-          }
-          setDbCategories([...dbCategories, categoryForList])
-          
-          // Auto-select the newly created category
-          setSelectedFormCategory(categoryForList.id)
-          
-          setCustomCategory('')
-          setShowCustomCategory(false)
-          console.log('New category added:', categoryForList)
-        } else {
-          const errorData = await response.json()
-          alert(errorData.error || 'Failed to add category')
-        }
-      } catch (error) {
-        console.error('Error adding category:', error)
-        alert('Error adding category. Please try again.')
-      }
-    }
-  }
-
-  const handleModelNameChange = (value: string) => {
-    setModelName(value)
-    
-    // Clear auto-fill note when user types manually
-    if (modelNameAutoFillNote) {
-      setModelNameAutoFillNote('')
-    }
-
-    // Show suggestions if there's a value
-    if (value.trim()) {
-      const mockSuggestions = [
-        'MacBook Pro 16-inch',
-        'MacBook Air 13-inch', 
-        'MacBook Pro 14-inch',
-        'ThinkPad X1 Carbon',
-        'ThinkPad T14',
-        'Surface Laptop Studio',
-        'Surface Pro 9',
-        'Dell XPS 13',
-        'Dell XPS 15',
-        'HP EliteBook 850'
-      ].filter(suggestion => 
-        suggestion.toLowerCase().includes(value.toLowerCase())
-      ).slice(0, 5)
-
-      setModelSuggestions(mockSuggestions)
-      setShowModelSuggestions(mockSuggestions.length > 0)
-    } else {
-      setShowModelSuggestions(false)
-      setModelSuggestions([])
-    }
-  }
-
-  const handleModelNumberChange = (value: string) => {
-    setModelNumber(value)
-
-    // Show model number suggestions and potentially auto-fill model name
-    if (value.trim()) {
-      const mockModelData: {[key: string]: {name: string; manufacturer: string; category: string}} = {
-        'MK183LL/A': { name: 'MacBook Pro 16-inch', manufacturer: 'Apple Inc.', category: 'Laptop' },
-        'MLY33LL/A': { name: 'MacBook Air 13-inch', manufacturer: 'Apple Inc.', category: 'Laptop' },
-        '20U9S02D00': { name: 'ThinkPad X1 Carbon Gen 9', manufacturer: 'Lenovo', category: 'Laptop' },
-        'ZVH-00001': { name: 'Surface Laptop Studio', manufacturer: 'Microsoft', category: 'Laptop' },
-        'QWH-00001': { name: 'Surface Pro 9', manufacturer: 'Microsoft', category: 'Laptop' },
-        '9310-1234': { name: 'XPS 13', manufacturer: 'Dell Technologies', category: 'Laptop' },
-        'HP850G8': { name: 'EliteBook 850 G8', manufacturer: 'HP Inc.', category: 'Laptop' }
-      }
-
-      // Check for exact matches
-      if (mockModelData[value]) {
-        const match = mockModelData[value]
-        
-        // Set auto-fill note for model name
-        setModelNameAutoFillNote(`Auto-filled: ${match.name}`)
-        
-        // Actually set the model name field
-        setModelName(match.name)
-        
-        // Auto-select manufacturer and category if they exist in dropdowns
-        const manufacturerMatch = manufacturers.find(m => m.name === match.manufacturer)
-        if (manufacturerMatch) {
-          setSelectedManufacturer(manufacturerMatch.id)
-        }
-        
-        const categoryMatch = dbCategories.find(c => c.name === match.category)
-        if (categoryMatch) {
-          setSelectedFormCategory(categoryMatch.id)
-        }
-      }
-      
-      // Show model number suggestions
-      const numberSuggestions = Object.keys(mockModelData).filter(modelNum => 
-        modelNum.toLowerCase().includes(value.toLowerCase())
-      ).slice(0, 5)
-      
-      setModelSuggestions(numberSuggestions)
-      setShowModelSuggestions(numberSuggestions.length > 0)
-    } else {
-      setShowModelSuggestions(false)
-      setModelSuggestions([])
-      setModelNameAutoFillNote('')
-    }
-  }
-
-  const handleSelectModelSuggestion = (suggestion: string) => {
-    setModelNumber(suggestion)
-    setShowModelSuggestions(false)
-    
-    // Trigger the same logic as typing the suggestion
-    handleModelNumberChange(suggestion)
-  }
-
-  const handleDocumentUpload = (files: FileList | null) => {
-    if (files) {
-      const newFiles = Array.from(files)
-      setSelectedDocuments(prev => [...prev, ...newFiles])
-      
-      // Create previews for image files
-      newFiles.forEach(file => {
-        if (file.type.startsWith('image/')) {
-          const reader = new FileReader()
-          reader.onload = (e) => {
-            setDocumentPreviews(prev => ({
-              ...prev,
-              [file.name]: e.target?.result as string
-            }))
-          }
-          reader.readAsDataURL(file)
-        }
-      })
-    }
-  }
-
-  const removeDocument = (fileName: string) => {
-    setSelectedDocuments(prev => prev.filter(doc => doc.name !== fileName))
-    setDocumentPreviews(prev => {
-      const newPreviews = { ...prev }
-      delete newPreviews[fileName]
-      return newPreviews
-    })
   }
 
   return (
@@ -460,10 +291,7 @@ export function AddAssetForm() {
               <CheckCircle className="w-5 h-5 mr-2" />
               <span className="text-sm font-medium">{successMessage}</span>
             </div>
-            <button 
-              onClick={() => setShowSuccessBanner(false)}
-              className="ml-4 text-white hover:text-gray-200"
-            >
+            <button onClick={() => setShowSuccessBanner(false)} className="ml-4 text-white hover:text-gray-200">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -480,9 +308,7 @@ export function AddAssetForm() {
             </Button>
             <div>
               <h1 className="text-3xl font-bold">Add New Asset</h1>
-              <p className="text-muted-foreground">
-                Step {currentPage} of {totalPages}
-              </p>
+              <p className="text-muted-foreground">Step {currentPage} of {totalPages}</p>
             </div>
           </div>
         </div>
@@ -492,37 +318,32 @@ export function AddAssetForm() {
           <CardHeader>
             <div className="flex items-center space-x-2">
               {Array.from({ length: totalPages }, (_, i) => (
-                <div key={i} className="flex-1 flex items-center">
-                  <div 
-                    className={`h-2 flex-1 rounded-full ${
-                      i + 1 <= currentPage ? 'bg-primary' : 'bg-muted'
+                <React.Fragment key={i}>
+                  <button
+                    onClick={() => handleStepClick(i + 1)}
+                    className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs font-medium transition-colors hover:bg-primary/10 ${
+                      i + 1 < currentPage ? 'bg-primary text-primary-foreground border-primary' :
+                      i + 1 === currentPage ? 'bg-background text-primary border-primary' :
+                      'bg-background text-muted-foreground border-muted hover:border-primary/50'
                     }`}
-                  />
+                  >
+                    {i + 1}
+                  </button>
                   {i < totalPages - 1 && (
-                    <button
-                      onClick={() => handleStepClick(i + 1)}
-                      className={`w-8 h-8 rounded-full border-2 mx-2 flex items-center justify-center text-xs font-medium transition-colors hover:bg-primary/10 ${
-                        i + 1 < currentPage ? 'bg-primary text-primary-foreground border-primary' :
-                        i + 1 === currentPage ? 'bg-background text-primary border-primary' :
-                        'bg-background text-muted-foreground border-muted hover:border-primary/50'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
+                    <div className={`flex-1 h-0.5 mx-3 ${
+                      i + 1 < currentPage ? 'bg-primary' : 'bg-muted'
+                    }`} />
                   )}
-                </div>
+                </React.Fragment>
               ))}
             </div>
             
             <div className="mt-3">
               <span className="text-lg font-medium">
-                {currentPage === 1 && 'Basic Information'}
-                {currentPage === 2 && 'Manufacturer & Category'}
-                {currentPage === 3 && 'Purchase Information'}
-                {currentPage === 4 && 'Status & Assignment'}
-                {currentPage === 5 && 'Warranty & Maintenance'}
-                {currentPage === 6 && 'Photos & Documentation'}
-                {currentPage === 7 && 'Additional Information'}
+                {currentPage === 1 && 'Basic Information & Photos'}
+                {currentPage === 2 && 'Purchase Information & Warranty'}
+                {currentPage === 3 && 'Status & Assignment'}
+                {currentPage === 4 && 'Additional Information'}
               </span>
             </div>
           </CardHeader>
@@ -537,8 +358,8 @@ export function AddAssetForm() {
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-lg font-medium mb-4">Basic Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="text-sm font-medium">Device Name *</label>
                           <Input 
@@ -548,9 +369,6 @@ export function AddAssetForm() {
                             onChange={(e) => setDeviceName(e.target.value)}
                             required 
                           />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            A friendly name to identify this specific asset
-                          </p>
                         </div>
                         <div>
                           <label className="text-sm font-medium">Asset Tag *</label>
@@ -561,52 +379,33 @@ export function AddAssetForm() {
                             onChange={(e) => setAssetTag(e.target.value)}
                             required 
                           />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Unique identifier for tracking and inventory
-                          </p>
-                        </div>
-                        <div className="pb-6">
-                          <label className="text-sm font-medium">Serial Number</label>
-                          <Input 
-                            placeholder="e.g., ABC123456789" 
-                            className="mt-1" 
-                            value={serialNumber}
-                            onChange={(e) => setSerialNumber(e.target.value)}
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Manufacturer's serial number
-                          </p>
                         </div>
                       </div>
-                      <div className="space-y-4">
+                      
+                      <div>
+                        <label className="text-sm font-medium">Category</label>
+                        <select 
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                          value={selectedFormCategory}
+                          onChange={(e) => setSelectedFormCategory(e.target.value)}
+                        >
+                          <option value="">Select category...</option>
+                          {dbCategories.map(category => (
+                            <option key={category.id} value={category.id}>{category.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="text-sm font-medium">Model Number *</label>
-                          <div className="relative">
-                            <Input 
-                              placeholder="e.g., MK183LL/A"
-                              className="mt-1" 
-                              value={modelNumber}
-                              onChange={(e) => handleModelNumberChange(e.target.value)}
-                              required
-                            />
-                            {showModelSuggestions && modelSuggestions.length > 0 && (
-                              <div className="absolute top-full left-0 right-0 z-50 bg-background border rounded-md shadow-lg max-h-40 overflow-y-auto">
-                                {modelSuggestions.map((suggestion, index) => (
-                                  <button
-                                    key={index}
-                                    type="button"
-                                    className="w-full text-left px-3 py-2 hover:bg-muted text-sm"
-                                    onClick={() => handleSelectModelSuggestion(suggestion)}
-                                  >
-                                    {suggestion}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Official model/part number from manufacturer
-                          </p>
+                          <Input 
+                            placeholder="e.g., MK183LL/A" 
+                            className="mt-1" 
+                            value={modelNumber}
+                            onChange={(e) => setModelNumber(e.target.value)}
+                            required 
+                          />
                         </div>
                         <div>
                           <label className="text-sm font-medium">Model Name</label>
@@ -614,192 +413,867 @@ export function AddAssetForm() {
                             placeholder="e.g., MacBook Pro 16-inch" 
                             className="mt-1" 
                             value={modelName}
-                            onChange={(e) => handleModelNameChange(e.target.value)}
+                            onChange={(e) => setModelName(e.target.value)}
                           />
-                          {modelNameAutoFillNote && (
-                            <div className="flex items-center mt-2 text-xs text-blue-600">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              {modelNameAutoFillNote}
-                            </div>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Human-readable model name
-                          </p>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="text-sm font-medium">Manufacturer</label>
+                          <select 
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                            value={selectedManufacturer}
+                            onChange={(e) => setSelectedManufacturer(e.target.value)}
+                          >
+                            <option value="">Select manufacturer...</option>
+                            {manufacturers.map(manufacturer => (
+                              <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">Serial Number</label>
+                          <Input 
+                            placeholder="e.g., ABC123456789" 
+                            className="mt-1" 
+                            value={serialNumber}
+                            onChange={(e) => setSerialNumber(e.target.value)}
+                          />
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
-
-              {/* Page 2: Manufacturer & Category */}
-              {currentPage === 2 && (
-                <div className="space-y-6">
+                  
                   <div>
-                    <h3 className="text-lg font-medium mb-4">Manufacturer & Category</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium">Manufacturer</label>
-                        <select 
-                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
-                          value={selectedManufacturer}
-                          onChange={(e) => {
-                            setSelectedManufacturer(e.target.value)
-                            handleManufacturerChange(e.target.value)
-                          }}
-                        >
-                          <option value="">Select manufacturer...</option>
-                          {manufacturers.map(manufacturer => (
-                            <option key={manufacturer.id} value={manufacturer.id}>{manufacturer.name}</option>
-                          ))}
-                          <option value="custom">+ Add New Manufacturer</option>
-                        </select>
-                        {showCustomManufacturer && (
-                          <div className="mt-2 space-y-3">
-                            <Input
-                              placeholder="Enter new manufacturer name"
-                              value={customManufacturer}
-                              onChange={(e) => setCustomManufacturer(e.target.value)}
-                            />
-                            <div className="flex gap-2">
-                              <Button 
-                                type="button" 
-                                size="sm" 
-                                onClick={handleAddManufacturer}
-                                disabled={!customManufacturer.trim()}
-                              >
-                                Add Manufacturer
-                              </Button>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => {
-                                  setShowCustomManufacturer(false)
-                                  setCustomManufacturer('')
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Category</label>
-                        <select 
-                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
-                          value={selectedFormCategory}
-                          onChange={(e) => {
-                            setSelectedFormCategory(e.target.value)
-                            handleCategoryChange(e.target.value)
-                          }}
-                        >
-                          <option value="">Select category...</option>
-                          {dbCategories.map(category => (
-                            <option key={category.id} value={category.id}>{category.name}</option>
-                          ))}
-                          <option value="custom">+ Add New Category</option>
-                        </select>
-                        {showCustomCategory && (
-                          <div className="mt-2 space-y-3">
-                            <Input
-                              placeholder="Enter new category name"
-                              value={customCategory}
-                              onChange={(e) => setCustomCategory(e.target.value)}
-                            />
-                            <div className="flex gap-2">
-                              <Button 
-                                type="button" 
-                                size="sm" 
-                                onClick={handleAddCategory}
-                                disabled={!customCategory.trim()}
-                              >
-                                Add Category
-                              </Button>
-                              <Button 
-                                type="button" 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => {
-                                  setShowCustomCategory(false)
-                                  setCustomCategory('')
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                    <h3 className="text-lg font-medium mb-4">Asset Photos</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <button type="button" className="p-3 border rounded-lg text-center border-primary bg-primary/5">
+                        <Package className="h-6 w-6 mx-auto mb-1" />
+                        <span className="text-sm font-medium block">Use Category Photo</span>
+                      </button>
+                      <button type="button" className="p-3 border rounded-lg text-center border-muted hover:border-primary/50">
+                        <Package className="h-6 w-6 mx-auto mb-1" />
+                        <span className="text-sm font-medium block">Upload Photo</span>
+                      </button>
+                      <button type="button" className="p-3 border rounded-lg text-center border-muted hover:border-primary/50">
+                        <Package className="h-6 w-6 mx-auto mb-1" />
+                        <span className="text-sm font-medium block">Model Photo</span>
+                      </button>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Additional pages would be implemented here following the same pattern */}
-              {currentPage > 2 && currentPage < 7 && (
-                <div className="space-y-6">
-                  <div className="text-center py-12">
-                    <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-medium mb-2">Step {currentPage} Content</h3>
-                    <p className="text-muted-foreground">
-                      This step will be implemented based on the modal content
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Page 7: Additional Information */}
-              {currentPage === 7 && (
+              {/* Page 2: Purchase Information */}
+              {currentPage === 2 && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-medium mb-4">Additional Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <h3 className="text-lg font-medium mb-4">Purchase Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium">Asset Value (Current)</label>
+                        <label className="text-sm font-medium">Purchase Date *</label>
+                        <Input 
+                          type="date" 
+                          className="mt-1" 
+                          value={purchaseDate}
+                          onChange={(e) => setPurchaseDate(e.target.value)}
+                          required 
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Purchase Cost</label>
                         <Input 
                           type="number" 
                           step="0.01" 
                           placeholder="1999.99" 
                           className="mt-1" 
-                          value={assetValue}
-                          onChange={(e) => setAssetValue(e.target.value)}
+                          value={purchaseCost}
+                          onChange={(e) => setPurchaseCost(e.target.value)}
                         />
                       </div>
                       <div>
-                        <label className="text-sm font-medium">Depreciation Method</label>
-                        <select className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1">
-                          <option value="">Select method...</option>
-                          <option value="straight-line">Straight Line</option>
-                          <option value="declining-balance">Declining Balance</option>
-                          <option value="sum-of-years">Sum of Years</option>
-                          <option value="units-of-production">Units of Production</option>
+                        <label className="text-sm font-medium">Vendor/Supplier</label>
+                        <select 
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                          value={vendor}
+                          onChange={(e) => setVendor(e.target.value)}
+                        >
+                          <option value="">Select vendor...</option>
+                          {vendors.map(vendor => (
+                            <option key={vendor.id} value={vendor.id}>{vendor.name}</option>
+                          ))}
                         </select>
                       </div>
-                    </div>
-                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium">Invoice Number</label>
+                        <Input 
+                          placeholder="e.g., INV-2023-001" 
+                          className="mt-1" 
+                          value={invoiceNumber}
+                          onChange={(e) => setInvoiceNumber(e.target.value)}
+                        />
+                      </div>
                       <div>
                         <label className="text-sm font-medium">External Ticket ID</label>
                         <Input 
-                          placeholder="e.g., SNOW-123456 (ServiceNow ticket)" 
+                          placeholder="e.g., SNOW-123456" 
                           className="mt-1" 
                           value={externalTicketId}
                           onChange={(e) => setExternalTicketId(e.target.value)}
                         />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Document Upload</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium">Upload Documents</label>
+                        <input 
+                          type="file"
+                          multiple
+                          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                          className="mt-1 w-full"
+                          onChange={(e) => setUploadedDocuments(Array.from(e.target.files || []))}
+                        />
                         <p className="text-xs text-muted-foreground mt-1">
-                          Reference to external ticket system for tracking
+                          Upload receipts, warranty documents, user manuals (PDF, images, Word docs)
                         </p>
                       </div>
+                      {uploadedDocuments.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium mb-2">Uploaded Files:</h4>
+                          <ul className="text-sm text-muted-foreground">
+                            {uploadedDocuments.map((file, index) => (
+                              <li key={index}>{file.name} ({Math.round(file.size / 1024)}KB)</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Warranty Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium">Notes</label>
-                        <textarea 
-                          className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring mt-1"
-                          placeholder="Add any additional notes about this asset..."
-                          value={notes}
-                          onChange={(e) => setNotes(e.target.value)}
+                        <label className="text-sm font-medium">Warranty Start Date</label>
+                        <Input 
+                          type="date" 
+                          className="mt-1" 
+                          value={warrantyStartDate}
+                          onChange={(e) => setWarrantyStartDate(e.target.value)}
                         />
                       </div>
+                      <div>
+                        <label className="text-sm font-medium">Warranty End Date</label>
+                        <Input 
+                          type="date" 
+                          className="mt-1" 
+                          value={warrantyEndDate}
+                          onChange={(e) => setWarrantyEndDate(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Warranty Provider</label>
+                        <Input 
+                          placeholder="e.g., Manufacturer, Vendor" 
+                          className="mt-1" 
+                          value={warrantyProvider}
+                          onChange={(e) => setWarrantyProvider(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Warranty Type</label>
+                        <select 
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                          value={warrantyType}
+                          onChange={(e) => setWarrantyType(e.target.value)}
+                        >
+                          <option value="">Select warranty type...</option>
+                          <option value="Standard">Standard</option>
+                          <option value="Extended">Extended</option>
+                          <option value="Prolonged">Prolonged</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Support Contact Info</label>
+                        <Input 
+                          placeholder="e.g., support@example.com, 1-800-123-4567" 
+                          className="mt-1" 
+                          value={supportContactInfo}
+                          onChange={(e) => setSupportContactInfo(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Page 3: Status & Assignment */}
+              {currentPage === 3 && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium mb-4">Status & Assignment</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium">Asset Status *</label>
+                        <select 
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                          value={assetStatus}
+                          onChange={(e) => setAssetStatus(e.target.value)}
+                          required 
+                        >
+                          <option value="">Select status...</option>
+                          <option value="New">New</option>
+                          <option value="In Use">In Use</option>
+                          <option value="In Storage">In Storage</option>
+                          <option value="Retired">Retired</option>
+                          <option value="Lost">Lost</option>
+                          <option value="Damaged">Damaged</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Deployment Status</label>
+                        <select 
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                          value={deploymentStatus}
+                          onChange={(e) => setDeploymentStatus(e.target.value)}
+                        >
+                          <option value="">Select deployment status...</option>
+                          <option value="Deployed">Deployed</option>
+                          <option value="Not Deployed">Not Deployed</option>
+                          <option value="Pending Deployment">Pending Deployment</option>
+                          <option value="Returned">Returned</option>
+                        </select>
+                      </div>
+                                              <div>
+                          <label className="text-sm font-medium">Assigned User</label>
+                          <select 
+                            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                            value={assignedUser}
+                            onChange={(e) => {
+                              setAssignedUser(e.target.value)
+                              const selectedUser = users.find(user => user.id === e.target.value)
+                              if (selectedUser) {
+                                const userDept = departments.find(dept => dept.name === selectedUser.department)
+                                const userLoc = locations.find(loc => loc.name === selectedUser.location)
+                                if (userDept) setDepartment(userDept.id)
+                                if (userLoc) setAssignedLocation(userLoc.id)
+                                setAssignedUserEmail(selectedUser.email)
+                              }
+                            }}
+                          >
+                            <option value="">Select user...</option>
+                            {users.map(user => (
+                              <option key={user.id} value={user.id}>{user.name} ({user.email})</option>
+                            ))}
+                          </select>
+                        </div>
+                      <div>
+                        <label className="text-sm font-medium">Assigned User Email</label>
+                        <Input 
+                          placeholder="e.g., john.doe@example.com" 
+                          className="mt-1" 
+                          value={assignedUserEmail}
+                          onChange={(e) => setAssignedUserEmail(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Assigned Location</label>
+                        <select 
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                          value={assignedLocation}
+                          onChange={(e) => setAssignedLocation(e.target.value)}
+                        >
+                          <option value="">Select location...</option>
+                          {locations.map(location => (
+                            <option key={location.id} value={location.id}>{location.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Department</label>
+                        <select 
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                          value={department}
+                          onChange={(e) => setDepartment(e.target.value)}
+                        >
+                          <option value="">Select department...</option>
+                          {departments.map(dept => (
+                            <option key={dept.id} value={dept.id}>{dept.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Assigned Date</label>
+                        <Input 
+                          type="date" 
+                          className="mt-1" 
+                          value={assignedDate || new Date().toISOString().split('T')[0]}
+                          onChange={(e) => setAssignedDate(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Maintenance Schedule</label>
+                        <select 
+                          className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                          value={maintenanceSchedule}
+                          onChange={(e) => setMaintenanceSchedule(e.target.value)}
+                        >
+                          <option value="">Select maintenance schedule...</option>
+                          <option value="Monthly">Monthly</option>
+                          <option value="Quarterly">Quarterly</option>
+                          <option value="Semi-Annual">Semi-Annual</option>
+                          <option value="Annual">Annual</option>
+                          <option value="As Needed">As Needed</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <div className="flex items-center space-x-2">
+                        <input 
+                          type="checkbox"
+                          id="isFixedAsset"
+                          checked={isFixedAsset}
+                          onChange={(e) => setIsFixedAsset(e.target.checked)}
+                          className="h-4 w-4"
+                        />
+                        <label htmlFor="isFixedAsset" className="text-sm font-medium">
+                          Fixed Asset
+                        </label>
+                      </div>
+                      {isFixedAsset && (
+                        <div>
+                          <label className="text-sm font-medium">Fixed Asset ID</label>
+                          <Input 
+                            placeholder="e.g., FA-2023-001"
+                            className="mt-1"
+                            value={fixedAssetId}
+                            onChange={(e) => setFixedAssetId(e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Page 4: Additional Information */}
+              {currentPage === 4 && (
+                <div className="space-y-6">
+
+                  {/* Desktop Category Specifications */}
+                  {isDesktopCategory() && (
+                    <div className="space-y-6">
+                      <div className="border-t pt-6">
+                        <h4 className="text-md font-medium mb-4">Hardware Specifications</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-sm font-medium">CPU/Processor</label>
+                            <Input 
+                              placeholder="e.g., Intel Core i7-12700K"
+                              className="mt-1"
+                              value={cpu}
+                              onChange={(e) => setCpu(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">RAM (GB)</label>
+                            <Input 
+                              type="number"
+                              placeholder="e.g., 16"
+                              className="mt-1"
+                              value={ramGb}
+                              onChange={(e) => setRamGb(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Storage Type</label>
+                            <select 
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                              value={storageType}
+                              onChange={(e) => setStorageType(e.target.value)}
+                            >
+                              <option value="">Select storage type...</option>
+                              <option value="HDD">HDD (Hard Disk Drive)</option>
+                              <option value="SSD">SSD (Solid State Drive)</option>
+                              <option value="NVMe">NVMe SSD</option>
+                              <option value="eMMC">eMMC</option>
+                              <option value="Hybrid">Hybrid (SSHD)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Storage Size</label>
+                            <div className="flex gap-2 mt-1">
+                              <Input 
+                                type="number"
+                                placeholder="e.g., 512"
+                                className="flex-1"
+                                value={storageSizeGb}
+                                onChange={(e) => setStorageSizeGb(e.target.value)}
+                              />
+                              <select 
+                                className="flex h-9 w-20 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                                value={storageUnit}
+                                onChange={(e) => setStorageUnit(e.target.value)}
+                              >
+                                <option value="GB">GB</option>
+                                <option value="TB">TB</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">GPU/Graphics</label>
+                            <Input 
+                              placeholder="e.g., NVIDIA GeForce RTX 3070"
+                              className="mt-1"
+                              value={gpu}
+                              onChange={(e) => setGpu(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Operating System</label>
+                            <Input 
+                              placeholder="e.g., Windows 11 Pro"
+                              className="mt-1"
+                              value={operatingSystem}
+                              onChange={(e) => setOperatingSystem(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">USB Ports</label>
+                            <Input 
+                              placeholder="e.g., 4x USB 3.0, 2x USB-C"
+                              className="mt-1"
+                              value={usbPortsType}
+                              onChange={(e) => setUsbPortsType(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Display Ports</label>
+                            <Input 
+                              placeholder="e.g., 1x HDMI, 2x DisplayPort"
+                              className="mt-1"
+                              value={displayPortsType}
+                              onChange={(e) => setDisplayPortsType(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">PSU Type</label>
+                            <select 
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                              value={psuType}
+                              onChange={(e) => setPsuType(e.target.value)}
+                            >
+                              <option value="">Select PSU type...</option>
+                              <option value="Universal">Universal</option>
+                              <option value="Proprietary">Proprietary</option>
+                              <option value="External Adapter">External Adapter</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">PSU Wattage</label>
+                            <Input 
+                              type="number"
+                              placeholder="e.g., 650"
+                              className="mt-1"
+                              value={psuWattage}
+                              onChange={(e) => setPsuWattage(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox"
+                              id="hasBuiltinWifi"
+                              checked={hasBuiltinWifi}
+                              onChange={(e) => setHasBuiltinWifi(e.target.checked)}
+                              className="h-4 w-4"
+                            />
+                            <label htmlFor="hasBuiltinWifi" className="text-sm font-medium">
+                              Built-in WiFi
+                            </label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox"
+                              id="hasCdDrive"
+                              checked={hasCdDrive}
+                              onChange={(e) => setHasCdDrive(e.target.checked)}
+                              className="h-4 w-4"
+                            />
+                            <label htmlFor="hasCdDrive" className="text-sm font-medium">
+                              CD/DVD Drive
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* System and Network Information */}
+                      <div className="border-t pt-6">
+                        <h4 className="text-md font-medium mb-4">System & Network Information</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-sm font-medium">MAC Address</label>
+                            <Input 
+                              placeholder="e.g., 00:11:22:33:44:55"
+                              className="mt-1"
+                              value={macAddress}
+                              onChange={(e) => setMacAddress(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Network Type</label>
+                            <select 
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                              value={networkType}
+                              onChange={(e) => setNetworkType(e.target.value)}
+                            >
+                              <option value="">Select network type...</option>
+                              <option value="DHCP">DHCP</option>
+                              <option value="Static">Static IP</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Static IP Address</label>
+                            <Input 
+                              placeholder="e.g., 192.168.1.100"
+                              className="mt-1"
+                              value={staticIpAddress}
+                              onChange={(e) => setStaticIpAddress(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">VLAN</label>
+                            <Input 
+                              placeholder="e.g., 100"
+                              className="mt-1"
+                              value={vlan}
+                              onChange={(e) => setVlan(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Switch Name</label>
+                            <Input 
+                              placeholder="e.g., SW-FLOOR-01"
+                              className="mt-1"
+                              value={switchName}
+                              onChange={(e) => setSwitchName(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Switch Port</label>
+                            <Input 
+                              placeholder="e.g., Gi1/0/24"
+                              className="mt-1"
+                              value={switchPort}
+                              onChange={(e) => setSwitchPort(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Laptop Category Specifications */}
+                  {isLaptopCategory() && (
+                    <div className="space-y-6">
+                      <div className="border-t pt-6">
+                        <h4 className="text-md font-medium mb-4">Hardware Specifications</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-sm font-medium">CPU/Processor</label>
+                            <Input 
+                              placeholder="e.g., Intel Core i7-1260P"
+                              className="mt-1"
+                              value={cpu}
+                              onChange={(e) => setCpu(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">RAM (GB)</label>
+                            <Input 
+                              type="number"
+                              placeholder="e.g., 16"
+                              className="mt-1"
+                              value={ramGb}
+                              onChange={(e) => setRamGb(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Storage Type</label>
+                            <select 
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                              value={storageType}
+                              onChange={(e) => setStorageType(e.target.value)}
+                            >
+                              <option value="">Select storage type...</option>
+                              <option value="HDD">HDD (Hard Disk Drive)</option>
+                              <option value="SSD">SSD (Solid State Drive)</option>
+                              <option value="NVMe">NVMe SSD</option>
+                              <option value="eMMC">eMMC</option>
+                              <option value="Hybrid">Hybrid (SSHD)</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Storage Size</label>
+                            <div className="flex gap-2 mt-1">
+                              <Input 
+                                type="number"
+                                placeholder="e.g., 512"
+                                className="flex-1"
+                                value={storageSizeGb}
+                                onChange={(e) => setStorageSizeGb(e.target.value)}
+                              />
+                              <select 
+                                className="flex h-9 w-20 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                                value={storageUnit}
+                                onChange={(e) => setStorageUnit(e.target.value)}
+                              >
+                                <option value="GB">GB</option>
+                                <option value="TB">TB</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Screen Size</label>
+                            <Input 
+                              placeholder="e.g., 15.6 inches"
+                              className="mt-1"
+                              value={screenSize}
+                              onChange={(e) => setScreenSize(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">GPU/Graphics</label>
+                            <Input 
+                              placeholder="e.g., Intel Iris Xe Graphics"
+                              className="mt-1"
+                              value={gpu}
+                              onChange={(e) => setGpu(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">Operating System</label>
+                            <Input 
+                              placeholder="e.g., Windows 11 Pro"
+                              className="mt-1"
+                              value={operatingSystem}
+                              onChange={(e) => setOperatingSystem(e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium">MAC Address</label>
+                            <Input 
+                              placeholder="e.g., 00:11:22:33:44:55"
+                              className="mt-1"
+                              value={macAddress}
+                              onChange={(e) => setMacAddress(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox"
+                              id="laptopBitlockerEnabled"
+                              checked={bitlockerEnabled}
+                              onChange={(e) => setBitlockerEnabled(e.target.checked)}
+                              className="h-4 w-4"
+                            />
+                            <label htmlFor="laptopBitlockerEnabled" className="text-sm font-medium">
+                              BitLocker Enabled
+                            </label>
+                          </div>
+                          {bitlockerEnabled && (
+                            <div>
+                              <label className="text-sm font-medium">BitLocker Recovery Key</label>
+                              <Input 
+                                placeholder="Enter BitLocker recovery key"
+                                className="mt-1"
+                                value={bitlockerRecoveryKey}
+                                onChange={(e) => setBitlockerRecoveryKey(e.target.value)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Phone Category Specifications */}
+                  {isPhoneCategory() && (
+                    <div className="space-y-6">
+                      <div className="border-t pt-6">
+                        <h4 className="text-md font-medium mb-4">Phone Specifications</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-sm font-medium">Expandable Storage Type</label>
+                            <select 
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                              value={phoneExpandableStorageType}
+                              onChange={(e) => setPhoneExpandableStorageType(e.target.value)}
+                            >
+                              <option value="">Select storage type...</option>
+                              <option value="SD Card">SD Card</option>
+                              <option value="microSD Card">microSD Card</option>
+                              <option value="SSD">SSD</option>
+                              <option value="HDD">HDD</option>
+                              <option value="USB Drive">USB Drive</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                          <div className="flex items-center justify-center">
+                            <div className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox"
+                                id="phoneCarrierLocked"
+                                checked={isCarrierLocked}
+                                onChange={(e) => setIsCarrierLocked(e.target.checked)}
+                                className="h-4 w-4"
+                              />
+                              <label htmlFor="phoneCarrierLocked" className="text-sm font-medium">
+                                Carrier Locked
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tablet Category Specifications */}
+                  {isTabletCategory() && (
+                    <div className="space-y-6">
+                      <div className="border-t pt-6">
+                        <h4 className="text-md font-medium mb-4">Tablet Specifications</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-sm font-medium">Expandable Storage Type</label>
+                            <select 
+                              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm mt-1"
+                              value={tabletExpandableStorageType}
+                              onChange={(e) => setTabletExpandableStorageType(e.target.value)}
+                            >
+                              <option value="">Select storage type...</option>
+                              <option value="SD Card">SD Card</option>
+                              <option value="microSD Card">microSD Card</option>
+                              <option value="SSD">SSD</option>
+                              <option value="HDD">HDD</option>
+                              <option value="USB Drive">USB Drive</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                          <div className="flex items-center justify-center">
+                            <div className="flex items-center space-x-2">
+                              <input 
+                                type="checkbox"
+                                id="tabletCarrierLocked"
+                                checked={isCarrierLocked}
+                                onChange={(e) => setIsCarrierLocked(e.target.checked)}
+                                className="h-4 w-4"
+                              />
+                              <label htmlFor="tabletCarrierLocked" className="text-sm font-medium">
+                                Carrier Locked
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* MDM Management Sections */}
+                  {(isPhoneCategory() || isTabletCategory() || isLaptopCategory() || isDesktopCategory()) && (
+                    <div className="space-y-6">
+                      <div className="border-t pt-6">
+                        <h4 className="text-md font-medium mb-4">MDM Management</h4>
+                        <div className="flex flex-wrap items-center gap-6 mb-4">
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox"
+                              id="appleBusinessManager"
+                              checked={appleBusinessManager}
+                              onChange={(e) => setAppleBusinessManager(e.target.checked)}
+                              className="h-4 w-4"
+                            />
+                            <label htmlFor="appleBusinessManager" className="text-sm font-medium">
+                              Apple Business Manager
+                            </label>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox"
+                              id="intuneManagement"
+                              checked={intuneManagement}
+                              onChange={(e) => setIntuneManagement(e.target.checked)}
+                              className="h-4 w-4"
+                            />
+                            <label htmlFor="intuneManagement" className="text-sm font-medium">
+                              Microsoft Intune
+                            </label>
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <input 
+                              type="checkbox"
+                              id="mosyleManagement"
+                              checked={mosyleManagement}
+                              onChange={(e) => setMosyleManagement(e.target.checked)}
+                              className="h-4 w-4"
+                            />
+                            <label htmlFor="mosyleManagement" className="text-sm font-medium">
+                              Mosyle
+                            </label>
+                          </div>
+                        </div>
+                        
+                        {(appleBusinessManager || intuneManagement) && (
+                          <div className="space-y-4">
+                            <hr className="border-gray-200" />
+                            <div>
+                              <label className="text-sm font-medium">Device Configuration Policies</label>
+                              <Input 
+                                placeholder="Enter device configuration policies"
+                                className="mt-1"
+                                value={deviceConfigurationPolicies}
+                                onChange={(e) => setDeviceConfigurationPolicies(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium">Group Membership</label>
+                              <Input 
+                                placeholder="Enter group membership details"
+                                className="mt-1"
+                                value={groupMembership}
+                                onChange={(e) => setGroupMembership(e.target.value)}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notes Section - Moved to Bottom */}
+                  <div className="border-t pt-6">
+                    <h4 className="text-md font-medium mb-4">Notes</h4>
+                    <div>
+                      <textarea 
+                        className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        placeholder="Add any additional notes about this asset..."
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                      />
                     </div>
                   </div>
                 </div>
